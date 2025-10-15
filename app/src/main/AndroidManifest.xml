@@ -1,16 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- ✅ Permisos requeridos en la actividad -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Desde Android 13+ (API 33) es permiso runtime -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- (Opcional) Declarar que podrías usar micrófono -->
+    <uses-feature
+        android:name="android.hardware.microphone"
+        android:required="false" />
 
     <application
+        android:name=".FinEduApp"
         android:allowBackup="true"
-        android:dataExtractionRules="@xml/data_extraction_rules"
-        android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Finedu">
+
+        <!-- 🧭 LAUNCHER: con intent-filter debe tener exported="true" -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -18,10 +29,16 @@
             android:theme="@style/Theme.Finedu">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-    </application>
 
+        <!-- Si en el futuro agregas un Service/Receiver con intent-filter,
+             recuerda poner android:exported="true/false" explícito. -->
+        <!--
+        <service
+            android:name=".notifications.FcmService"
+            android:exported="false" />
+        -->
+    </application>
 </manifest>
