@@ -11,36 +11,41 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.finedu.app.auth.login.LoginScreen
+import com.finedu.app.auth.login.LoginViewModel
+import com.finedu.app.auth.register.RegisterScreen
+import com.finedu.app.auth.register.RegisterViewModel
 import com.google.firebase.FirebaseApp
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessaging
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    // Launcher para pedir permisos en runtime
     private val requestPermissions = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { results ->
         Log.d("Perms", "Resultados permisos: $results")
-        // Aquí podrías reaccionar si alguno fue denegado
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // ✅ Inicializar Firebase (requiere google-services.json en app/)
         FirebaseApp.initializeApp(this)
 
-        // ✅ Token de FCM (solo log)
         FirebaseMessaging.getInstance().token
             .addOnSuccessListener { token ->
                 Log.d("FCM", "📩 Token FCM: $token")
@@ -49,7 +54,6 @@ class MainActivity : ComponentActivity() {
                 Log.e("FCM", "❌ Error al obtener token FCM", e)
             }
 
-        // ✅ Pedir permisos en runtime donde aplique
         ensureRuntimePermissions()
 
         setContent {
@@ -58,11 +62,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    FirebaseTestScreen(
-                        onTestFirebase = { testFirebaseConnection() },
-                        onFetchFcm = { fetchFcmToken() },
-                        onNotify = { showTestNotification(this) }
-                    )
+                    MainContent()
                 }
             }
         }
@@ -71,10 +71,8 @@ class MainActivity : ComponentActivity() {
     private fun ensureRuntimePermissions() {
         val toRequest = mutableListOf<String>()
 
-        // Micrófono en todas las versiones (si lo usarás)
         toRequest += Manifest.permission.RECORD_AUDIO
 
-        // Notificaciones solo en Android 13+ (API 33)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             toRequest += Manifest.permission.POST_NOTIFICATIONS
         }
@@ -88,70 +86,54 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
 @Composable
-fun FirebaseTestScreen(
-    onTestFirebase: () -> Unit,
-    onFetchFcm: () -> Unit,
-    onNotify: () -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text("🔥 Pruebas FinEdu — Firebase + Notificaciones")
+fun MainContent() {
+    val loginViewModel: LoginViewModel = hiltViewModel()
+    val registerViewModel: RegisterViewModel = hiltViewModel()
 
-        Button(onClick = onTestFirebase) {
-            Text("Probar Firebase (Auth + Firestore)")
+    val loginState by loginViewModel.state.collectAsState()
+    val registerState by registerViewModel.state.collectAsState()
+
+    var currentScreen by remember { mutableStateOf("login") }
+
+    when {
+        loginState.isSuccess || registerState.isSuccess -> {
+            // Pantalla principal después del login/registro exitoso
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("¡Bienvenido a FinEdu! 🎉")
+            }
         }
-
-        Button(onClick = onFetchFcm) {
-            Text("Obtener Token FCM")
+        currentScreen == "login" -> {
+            LoginScreen(
+                onLoginClick = { email, password ->
+                    loginViewModel.login(email, password)
+                },
+                onRegisterClick = {
+                    currentScreen = "register"
+                },
+                state = loginState,
+                onDismissError = {
+                    loginViewModel.clearError()
+                }
+            )
         }
-
-        Button(onClick = onNotify) {
-            Text("Notificación de prueba")
+        currentScreen == "register" -> {
+            RegisterScreen(
+                onRegisterClick = { name, email, password ->
+                    registerViewModel.register(name, email, password)
+                },
+                onLoginClick = {
+                    currentScreen = "login"
+                },
+                state = registerState,
+                onDismissError = {
+                    registerViewModel.clearError()
+                }
+            )
         }
     }
-}
-
-// 🧩 Prueba (Auth + Firestore)
-fun testFirebaseConnection() {
-    val auth = FirebaseAuth.getInstance()
-    val db = FirebaseFirestore.getInstance()
-
-    auth.signInAnonymously()
-        .addOnSuccessListener { result ->
-            val uid = result.user?.uid
-            Log.d("FirebaseAuth", "✅ Usuario anónimo autenticado: $uid")
-
-            val data = mapOf(
-                "mensaje" to "Hola desde FinEdu App 👋",
-                "timestamp" to System.currentTimeMillis(),
-                "usuario" to uid
-            )
-
-            db.collection("pruebas").add(data)
-                .addOnSuccessListener { docRef ->
-                    Log.d("Firestore", "✅ Documento agregado con ID: ${docRef.id}")
-                }
-                .addOnFailureListener { e ->
-                    Log.e("Firestore", "❌ Error al agregar documento", e)
-                }
-        }
-        .addOnFailureListener { e ->
-            Log.e("FirebaseAuth", "❌ Error al autenticar usuario anónimo", e)
-        }
-}
-
-// 📩 Token de FCM manual
-fun fetchFcmToken() {
-    FirebaseMessaging.getInstance().token
-        .addOnSuccessListener { token ->
-            Log.d("FCM", "📩 Token obtenido manualmente: $token")
-        }
-        .addOnFailureListener { e ->
-            Log.e("FCM", "❌ Error al obtener token manualmente", e)
-        }
 }
