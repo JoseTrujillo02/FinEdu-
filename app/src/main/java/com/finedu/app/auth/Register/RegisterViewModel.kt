@@ -3,21 +3,18 @@ package com.finedu.app.auth.register
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.UserProfileChangeRequest
-import com.google.firebase.firestore.FirebaseFirestore
+import com.finedu.app.auth.data.AuthApiService
+import com.finedu.app.auth.data.RegisterRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 @HiltViewModel
 class RegisterViewModel @Inject constructor(
-    private val auth: FirebaseAuth,
-    private val firestore: FirebaseFirestore
+    private val authApiService: AuthApiService
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(RegisterState())
@@ -50,53 +47,59 @@ class RegisterViewModel @Inject constructor(
             _state.value = _state.value.copy(isLoading = true, error = null)
 
             try {
-                // Crear usuario en Firebase Auth
-                val result = auth.createUserWithEmailAndPassword(email, password).await()
-                val user = result.user
+                val request = RegisterRequest(
+                    name = name,
+                    email = email,
+                    password = password
+                )
+                val response = authApiService.register(request)
 
-                if (user != null) {
-                    // Actualizar el perfil con el nombre
-                    val profileUpdates = UserProfileChangeRequest.Builder()
-                        .setDisplayName(name)
-                        .build()
-                    user.updateProfile(profileUpdates).await()
+                if (response.isSuccessful) {
+                    val registerResponse = response.body()
 
-                    // Guardar información adicional en Firestore
-                    val userData = hashMapOf(
-                        "uid" to user.uid,
-                        "name" to name,
-                        "email" to email,
-                        "createdAt" to System.currentTimeMillis()
-                    )
-
-                    firestore.collection("users")
-                        .document(user.uid)
-                        .set(userData)
-                        .await()
+                    // Verificar si hay un usuario en la respuesta
+                    if (registerResponse?.user != null && registerResponse.error == null) {
+                        _state.value = _state.value.copy(
+                            isLoading = false,
+                            isSuccess = true
+                        )
+                        Log.d("RegisterViewModel", "✅ Registro exitoso: ${registerResponse.user.uid}")
+                        Log.d("RegisterViewModel", "Usuario: ${registerResponse.user.displayName}")
+                    } else {
+                        _state.value = _state.value.copy(
+                            isLoading = false,
+                            error = registerResponse?.error ?: "Error al registrar usuario"
+                        )
+                        Log.e("RegisterViewModel", "❌ Error: ${registerResponse?.error}")
+                    }
+                } else {
+                    val errorMessage = when (response.code()) {
+                        400 -> "Email ya está registrado o datos inválidos"
+                        500 -> "Error del servidor. Intenta más tarde"
+                        else -> "Error del servidor: ${response.code()}"
+                    }
 
                     _state.value = _state.value.copy(
                         isLoading = false,
-                        isSuccess = true
+                        error = errorMessage
                     )
-                    Log.d("RegisterViewModel", "✅ Registro exitoso para: $email")
+                    Log.e("RegisterViewModel", "❌ Error HTTP: ${response.code()}")
                 }
             } catch (e: Exception) {
                 val errorMessage = when {
-                    e.message?.contains("email address is already") == true ->
-                        "Este email ya está registrado"
-                    e.message?.contains("network") == true ->
-                        "Error de conexión. Verifica tu internet"
-                    e.message?.contains("password") == true ->
-                        "La contraseña no cumple con los requisitos"
+                    e.message?.contains("Unable to resolve host") == true ->
+                        "Sin conexión a internet"
+                    e.message?.contains("timeout") == true ->
+                        "Tiempo de espera agotado. Intenta de nuevo"
                     else ->
-                        "Error al registrar: ${e.localizedMessage}"
+                        "Error: ${e.localizedMessage}"
                 }
 
                 _state.value = _state.value.copy(
                     isLoading = false,
                     error = errorMessage
                 )
-                Log.e("RegisterViewModel", "❌ Error registro", e)
+                Log.e("RegisterViewModel", "❌ Excepción registro", e)
             }
         }
     }

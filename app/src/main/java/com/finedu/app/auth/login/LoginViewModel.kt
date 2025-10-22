@@ -1,19 +1,20 @@
 package com.finedu.app.auth.login
+
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.FirebaseAuth
+import com.finedu.app.auth.data.AuthApiService
+import com.finedu.app.auth.data.LoginRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
-    private val auth: FirebaseAuth
+    private val authApiService: AuthApiService
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LoginState())
@@ -31,18 +32,49 @@ class LoginViewModel @Inject constructor(
             _state.value = _state.value.copy(isLoading = true, error = null)
 
             try {
-                auth.signInWithEmailAndPassword(email, password).await()
-                _state.value = _state.value.copy(
-                    isLoading = false,
-                    isSuccess = true
-                )
-                Log.d("LoginViewModel", "✅ Login exitoso")
+                val request = LoginRequest(email = email, password = password)
+                val response = authApiService.login(request)
+
+                if (response.isSuccessful) {
+                    val loginResponse = response.body()
+
+                    // Verificar si hay un usuario en la respuesta
+                    if (loginResponse?.user != null && loginResponse.error == null) {
+                        _state.value = _state.value.copy(
+                            isLoading = false,
+                            isSuccess = true
+                        )
+                        Log.d("LoginViewModel", "✅ Login exitoso: ${loginResponse.user.uid}")
+                        Log.d("LoginViewModel", "Usuario: ${loginResponse.user.displayName}")
+                    } else {
+                        _state.value = _state.value.copy(
+                            isLoading = false,
+                            error = loginResponse?.error ?: "Credenciales inválidas"
+                        )
+                        Log.e("LoginViewModel", "❌ Error: ${loginResponse?.error}")
+                    }
+                } else {
+                    _state.value = _state.value.copy(
+                        isLoading = false,
+                        error = "Error del servidor: ${response.code()}"
+                    )
+                    Log.e("LoginViewModel", "❌ Error HTTP: ${response.code()}")
+                }
             } catch (e: Exception) {
+                val errorMessage = when {
+                    e.message?.contains("Unable to resolve host") == true ->
+                        "Sin conexión a internet"
+                    e.message?.contains("timeout") == true ->
+                        "Tiempo de espera agotado. Intenta de nuevo"
+                    else ->
+                        "Error: ${e.localizedMessage}"
+                }
+
                 _state.value = _state.value.copy(
                     isLoading = false,
-                    error = "Error al iniciar sesión: ${e.localizedMessage}"
+                    error = errorMessage
                 )
-                Log.e("LoginViewModel", "❌ Error login", e)
+                Log.e("LoginViewModel", "❌ Excepción login", e)
             }
         }
     }
