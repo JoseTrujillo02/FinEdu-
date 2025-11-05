@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController // <-- 2. Importar NavController
+import com.finedu.app.ui.dictation.VoiceDictationViewModel
 
 /**
  * Composible para la interfaz de dictado y reconocimiento de voz.
@@ -25,8 +26,11 @@ import androidx.navigation.NavController // <-- 2. Importar NavController
  */
 @Composable
 fun VoiceDictationScreen(
-    navController: NavController // <-- 3. Aceptar el NavController
+    navController: NavController, // <-- 3. Aceptar el NavController
+    viewModel: VoiceDictationViewModel
 ) {
+
+    val state by viewModel.state.collectAsState()
     // Estado para almacenar el texto reconocido por voz.
     var recognizedText by remember { mutableStateOf("") }
     val context = LocalContext.current
@@ -64,19 +68,20 @@ fun VoiceDictationScreen(
         }
     }
 
-    // Lógica para enviar la patecion
-    val sendMessage ={
-
+    // --- 4. Lógica de éxito (ej: vuelve atrás si tuvo éxito) ---
+    LaunchedEffect(state.isSuccess) {
+        if (state.isSuccess) {
+            // Opcional: muestra un Toast o mensaje
+            navController.popBackStack() // Vuelve a MainScreen
+        }
     }
 
-    // Interfaz de Usuario (UI) de la pantalla
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        // Cambiamos el Arrangement para hacer espacio arriba
-        verticalArrangement = Arrangement.Top // <-- 4. CAMBIO AQUÍ
+        verticalArrangement = Arrangement.Top
     ) {
 
         // --- 5. BOTÓN DE VOLVER (AÑADIDO) ---
@@ -97,6 +102,14 @@ fun VoiceDictationScreen(
         }
         // --- FIN DEL BLOQUE AÑADIDO ---
 
+
+        if (state.error != null) {
+            Text(
+                text = "Error: ${state.error}",
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+        }
 
         // Campo de texto para el resultado
         OutlinedTextField(
@@ -123,21 +136,31 @@ fun VoiceDictationScreen(
         ) {
             Icon(Icons.Filled.Mic, contentDescription = "Micrófono")
         }
+
          // Espaciador entre los botones
         Spacer(modifier = Modifier.height(16.dp))
 
+
         // boton para enviar la solicitud
         Button(
-            onClick = sendMessage,
-            contentPadding = PaddingValues(horizontal = 30.dp, vertical = 15.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Black,
-                contentColor = Color.White
-            )
+            // --- 6. Llama al ViewModel ---
+            onClick = { viewModel.sendMessage(recognizedText) },
+            // Deshabilita si está cargando O si el texto está vacío
+            enabled = !state.isLoading && recognizedText.isNotBlank(),
+            // ... (tus colors)
         ) {
-            Text("Enviar")
-            Spacer(modifier = Modifier.width(8.dp))
-            Icon(Icons.Filled.Add, contentDescription = "enviar")
+            // --- 7. Muestra el Círculo de Carga ---
+            if (state.isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = Color.White,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text("Enviar")
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(Icons.Filled.Add, contentDescription = "enviar")
+            }
         }
     }
 }

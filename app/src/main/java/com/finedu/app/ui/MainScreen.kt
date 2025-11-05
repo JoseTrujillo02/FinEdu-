@@ -34,8 +34,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.ui.draw.clip
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.finedu.app.ui.dictation.VoiceDictationViewModel
 
-// Las rutas internas (Home, Profile, Dictation) se quedan igual
 sealed class MainScreenDestinations(val route: String) {
     object Home : MainScreenDestinations("home_tab")
     object Profile : MainScreenDestinations("profile_tab")
@@ -44,12 +45,10 @@ sealed class MainScreenDestinations(val route: String) {
 
 @Composable
 fun MainScreen(mainNavController: NavController, onLogoutClick: () -> Unit) {
-    // El controlador interno se queda
     val internalNavController = rememberNavController()
 
     Scaffold(
         topBar = {
-            // ¡Nuevo TopBar basado en tu diseño!
             MainTopBar(
                 onNotificationClick = {
                     // Usa el controlador PRINCIPAL para ir a Notificaciones
@@ -79,10 +78,17 @@ fun MainScreen(mainNavController: NavController, onLogoutClick: () -> Unit) {
                 )
             }
 
-            // 2. RUTA DE DICTADO (Se queda igual)
+            //2 Ruta de dictado por voz
             composable(MainScreenDestinations.Dictation.route) {
-                // El overlay de tu diseño (iPhone 16-11) es tu VoiceDictationScreen
-                VoiceDictationScreen(navController = internalNavController)
+
+                // --- 2. ¡CREA EL VIEWMODEL AQUÍ! ---
+                val viewModel: VoiceDictationViewModel = hiltViewModel()
+
+                // Le pasamos el ViewModel a la pantalla
+                VoiceDictationScreen(
+                    navController = internalNavController,
+                    viewModel = viewModel // <-- 3. Pásalo
+                )
             }
 
             // 3. RUTA DE PERFIL (Se queda igual, la llamaremos desde un ícono)

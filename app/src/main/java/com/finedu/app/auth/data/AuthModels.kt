@@ -50,3 +50,14 @@ data class RegisterResponse(
     @SerializedName("user") val user: User? = null,
     @SerializedName("error") val error: String? = null
 )
+
+ // Para enviar el mensaje de la app
+data class DictationRequest(
+    @SerializedName("mensaje") val mensaje: String
+)
+
+// 2. El JSON que RECIBES este queda pendiente
+data class DictationResponse(
+    @SerializedName("status") val status: String,
+    @SerializedName("message") val message: String
+)
