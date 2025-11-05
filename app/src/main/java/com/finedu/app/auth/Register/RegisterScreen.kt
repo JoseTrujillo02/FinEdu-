@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,6 +30,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.finedu.app.R
@@ -38,6 +40,7 @@ import kotlinx.coroutines.delay
 fun RegisterScreen(
     onRegisterClick: (String, String, String) -> Unit,
     onLoginClick: () -> Unit,
+    onTermsClick: () -> Unit,
     state: RegisterState = RegisterState(),
     onDismissError: () -> Unit = {}
 ) {
@@ -319,9 +322,18 @@ fun RegisterScreen(
                         )
                         Text(
                             text = "Acepto los términos y condiciones",
-                            color = Color.Gray,
+                            color = Color.Blue,
                             fontSize = 13.sp,
-                            modifier = Modifier.padding(start = 4.dp)
+                            style = LocalTextStyle.current.copy(
+                                // ¡Añadimos un subrayado para que parezca un link!
+                                textDecoration = TextDecoration.Underline
+                            ),
+                            modifier = Modifier
+                                .padding(start = 4.dp)
+                                .clickable(enabled = !state.isLoading) {
+                                    // ¡Esta es la acción!
+                                    onTermsClick()
+                                }
                         )
                     }
 

@@ -109,6 +109,7 @@ fun LoginScreen(
                     // Título
                     Text(
                         text = "Iniciar Sesion",
+                        style = MaterialTheme.typography.headlineMedium,
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color.White,

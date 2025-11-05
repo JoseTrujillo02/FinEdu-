@@ -11,10 +11,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.finedu.app.data.SessionRepository
+import com.finedu.app.data.UserSessionData
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
-    private val authApiService: AuthApiService
+    private val authApiService: AuthApiService,
+    private val sessionRepository: SessionRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LoginState())
@@ -39,13 +42,30 @@ class LoginViewModel @Inject constructor(
                     val loginResponse = response.body()
 
                     // Verificar si hay un usuario en la respuesta
-                    if (loginResponse?.user != null && loginResponse.error == null) {
+                    if (loginResponse?.user != null && loginResponse.tokens != null && loginResponse.error == null) {
+
+                        // 1. Extraemos los datos del response
+                        val user = loginResponse.user
+                        val tokens = loginResponse.tokens
+
+                        // 2. Creamos nuestro paquete de sesión (Paso 2)
+                        val sessionData = UserSessionData(
+                            idToken = tokens.idToken,
+                            refreshToken = tokens.refreshToken,
+                            uid = user.uid,
+                            email = user.email,
+                            name = user.displayName
+                        )
+
+                        // 3. ¡Guardamos en la caja fuerte!
+                        sessionRepository.saveSession(sessionData)
+
                         _state.value = _state.value.copy(
                             isLoading = false,
                             isSuccess = true
                         )
-                        Log.d("LoginViewModel", "✅ Login exitoso: ${loginResponse.user.uid}")
-                        Log.d("LoginViewModel", "Usuario: ${loginResponse.user.displayName}")
+                        Log.d("LoginViewModel", "✅ Login exitoso y sesión guardada")
+
                     } else {
                         _state.value = _state.value.copy(
                             isLoading = false,
