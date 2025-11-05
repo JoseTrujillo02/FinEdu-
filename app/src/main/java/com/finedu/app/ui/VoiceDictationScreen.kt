@@ -137,17 +137,17 @@ fun VoiceDictationScreen(
             Icon(Icons.Filled.Mic, contentDescription = "Micrófono")
         }
 
-         // Espaciador entre los botones
         Spacer(modifier = Modifier.height(16.dp))
 
-
-        // boton para enviar la solicitud
         Button(
-            // --- 6. Llama al ViewModel ---
             onClick = { viewModel.sendMessage(recognizedText) },
             // Deshabilita si está cargando O si el texto está vacío
             enabled = !state.isLoading && recognizedText.isNotBlank(),
-            // ... (tus colors)
+            contentPadding = PaddingValues(horizontal = 30.dp, vertical = 15.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color.Black,
+                contentColor = Color.White
+            )
         ) {
             // --- 7. Muestra el Círculo de Carga ---
             if (state.isLoading) {
