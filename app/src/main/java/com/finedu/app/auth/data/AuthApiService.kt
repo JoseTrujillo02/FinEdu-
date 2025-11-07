@@ -2,8 +2,10 @@ package com.finedu.app.auth.data
 
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
+import retrofit2.http.Query
 
 interface AuthApiService {
 
@@ -13,9 +15,17 @@ interface AuthApiService {
     @POST("api/auth/register")
     suspend fun register(@Body request: RegisterRequest): Response<RegisterResponse>
 
-    @POST("enviar-mensaje") // <-- ¡REEMPLAZA ESTO CON TU RUTA REAL! Esta pendiente
-    suspend fun sendDictation(
-        @Header("Authorization") token: String, // La cabecera con el token
-        @Body request: DictationRequest        // El JSON { "mensaje": "..." }
-    ): Response<DictationResponse>
+
+    @GET("api/transactions")
+    suspend fun getTransactions(
+        @Header("Authorization") token: String,
+
+        // Filtros opcionales
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null,
+        @Query("type") type: String? = null,
+        @Query("limit") limit: Int? = 20
+    ): Response<TransactionsResponse>
+
+
 }

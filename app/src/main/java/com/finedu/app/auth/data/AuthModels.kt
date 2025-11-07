@@ -12,13 +12,12 @@ data class LoginRequest(
 
 // Request para Registro
 data class RegisterRequest(
+    @SerializedName("displayName") //
     val name: String,
     val email: String,
     val password: String
 )
 
-
-// --- RESPONSES (Aquí está la corrección) ---
 
 // Respuesta de Login (¡CORREGIDA!)
 // Esto coincide con tu JSON: { "user": {...}, "tokens": {...} }
@@ -58,6 +57,26 @@ data class DictationRequest(
 
 // 2. El JSON que RECIBES este queda pendiente
 data class DictationResponse(
-    @SerializedName("status") val status: String,
-    @SerializedName("message") val message: String
+    @SerializedName("type") val type: String,
+    @SerializedName("amount") val amount: Int,
+    @SerializedName("category") val category: String,
+    @SerializedName("description") val description: String,
+    @SerializedName("date") val date: String
+)
+
+
+//3. para el get de las colecciones de firebase transaccion
+
+data class TransactionsResponse(
+    @SerializedName("items") val items: List<TransactionItem> = emptyList(),
+    @SerializedName("nextCursor") val nextCursor: String? = null
+)
+data class TransactionItem(
+    @SerializedName("id") val id: String,
+    @SerializedName("type") val type: String, // "income" o "expense"
+    @SerializedName("amount") val amount: Double,
+    @SerializedName("category") val category: String,
+    @SerializedName("description") val description: String? = null, // Basado en tu Firestore
+    @SerializedName("date") val date: String, // O puedes usar java.util.Date
+    @SerializedName("remainingCapital") val remainingCapital: Double? = null
 )

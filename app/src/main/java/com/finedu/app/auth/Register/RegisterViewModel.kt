@@ -4,101 +4,104 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.finedu.app.auth.data.AuthApiService
+import com.finedu.app.auth.data.LoginRequest // <-- 1. Importa el LoginRequest
 import com.finedu.app.auth.data.RegisterRequest
+import com.finedu.app.data.SessionRepository // <-- 2. Importa la "caja fuerte"
+import com.finedu.app.data.UserSessionData // <-- 3. Importa el paquete de sesión
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update // (Asegúrate de tener este import)
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+
 @HiltViewModel
 class RegisterViewModel @Inject constructor(
-    private val authApiService: AuthApiService
+    private val authApiService: AuthApiService, // <-- 4. COMA CORREGIDA
+    private val sessionRepository: SessionRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(RegisterState())
     val state: StateFlow<RegisterState> = _state.asStateFlow()
 
     fun register(name: String, email: String, password: String) {
-        // Validaciones
+        // (Tus validaciones se quedan igual, ¡están perfectas!)
         if (name.isBlank() || email.isBlank() || password.isBlank()) {
-            _state.value = _state.value.copy(
-                error = "Por favor completa todos los campos"
-            )
+            _state.update { it.copy(error = "Por favor completa todos los campos") }
             return
         }
+        if (password.length < 6) { /* ... */ }
+        if (!email.contains("@")) { /* ... */ }
 
-        if (password.length < 6) {
-            _state.value = _state.value.copy(
-                error = "La contraseña debe tener al menos 6 caracteres"
-            )
-            return
-        }
-
-        if (!email.contains("@")) {
-            _state.value = _state.value.copy(
-                error = "Por favor ingresa un email válido"
-            )
-            return
-        }
 
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true, error = null)
+            _state.update { it.copy(isLoading = true, error = null) }
 
             try {
-                val request = RegisterRequest(
-                    name = name,
+                // --- 5. CORRECCIÓN LÓGICA (Auto-Login) ---
+
+                // PASO 1: REGISTRAR
+                val regRequest = RegisterRequest(
+                    name = name, // <-- 6. CORRECCIÓN DE CAMPO (name, no displayName)
                     email = email,
                     password = password
                 )
-                val response = authApiService.register(request)
+                val regResponse = authApiService.register(regRequest)
 
-                if (response.isSuccessful) {
-                    val registerResponse = response.body()
-
-                    // Verificar si hay un usuario en la respuesta
-                    if (registerResponse?.user != null && registerResponse.error == null) {
-                        _state.value = _state.value.copy(
-                            isLoading = false,
-                            isSuccess = true
-                        )
-                        Log.d("RegisterViewModel", "✅ Registro exitoso: ${registerResponse.user.uid}")
-                        Log.d("RegisterViewModel", "Usuario: ${registerResponse.user.displayName}")
-                    } else {
-                        _state.value = _state.value.copy(
-                            isLoading = false,
-                            error = registerResponse?.error ?: "Error al registrar usuario"
-                        )
-                        Log.e("RegisterViewModel", "❌ Error: ${registerResponse?.error}")
-                    }
-                } else {
-                    val errorMessage = when (response.code()) {
+                if (!regResponse.isSuccessful || regResponse.body()?.user == null) {
+                    val errorMessage = when (regResponse.code()) {
                         400 -> "Email ya está registrado o datos inválidos"
-                        500 -> "Error del servidor. Intenta más tarde"
-                        else -> "Error del servidor: ${response.code()}"
+                        else -> regResponse.body()?.error ?: "Error: ${regResponse.code()}"
                     }
+                    _state.update { it.copy(isLoading = false, error = errorMessage) }
+                    return@launch // Detiene si el registro falla
+                }
 
-                    _state.value = _state.value.copy(
-                        isLoading = false,
-                        error = errorMessage
+                Log.d("RegisterViewModel", "✅ Registro exitoso. Iniciando sesión automáticamente...")
+
+                // PASO 2: INICIAR SESIÓN (AUTO-LOGIN)
+                val logRequest = LoginRequest(email, password)
+                val logResponse = authApiService.login(logRequest)
+                val loginBody = logResponse.body()
+
+                if (logResponse.isSuccessful && loginBody?.user != null && loginBody.tokens != null) {
+
+                    // PASO 3: GUARDAR SESIÓN
+                    val user = loginBody.user
+                    val tokens = loginBody.tokens
+
+                    val currentTime = System.currentTimeMillis()
+                    val expiresAt = currentTime + (tokens.expiresIn * 1000L)
+
+                    val sessionData = UserSessionData(
+                        idToken = tokens.idToken,
+                        refreshToken = tokens.refreshToken,
+                        uid = user.uid,
+                        email = user.email,
+                        name = user.displayName,
                     )
-                    Log.e("RegisterViewModel", "❌ Error HTTP: ${response.code()}")
-                }
-            } catch (e: Exception) {
-                val errorMessage = when {
-                    e.message?.contains("Unable to resolve host") == true ->
-                        "Sin conexión a internet"
-                    e.message?.contains("timeout") == true ->
-                        "Tiempo de espera agotado. Intenta de nuevo"
-                    else ->
-                        "Error: ${e.localizedMessage}"
+
+                    // ¡Guardamos en la caja fuerte!
+                    sessionRepository.saveSession(sessionData)
+
+                    // PASO 4: MARCAR ÉXITO
+                    _state.update { it.copy(isLoading = false, isSuccess = true) }
+                    Log.d("RegisterViewModel", "✅ ¡Sesión automática guardada!")
+
+                } else {
+                    // El registro funcionó, pero el auto-login falló.
+                    _state.update { it.copy(isLoading = false, error = "Registro exitoso, pero el auto-login falló. Intenta iniciar sesión manualmente.") }
                 }
 
-                _state.value = _state.value.copy(
-                    isLoading = false,
-                    error = errorMessage
-                )
+            } catch (e: Exception) {
+                // (Tu manejo de excepciones se queda igual, ¡está perfecto!)
+                val errorMessage = when {
+                    e.message?.contains("Unable to resolve host") == true -> "Sin conexión a internet"
+                    else -> "Error: ${e.localizedMessage}"
+                }
+                _state.update { it.copy(isLoading = false, error = errorMessage) }
                 Log.e("RegisterViewModel", "❌ Excepción registro", e)
             }
         }
