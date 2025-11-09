@@ -4,10 +4,12 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.finedu.app.auth.data.AuthApiService
+import com.finedu.app.auth.data.ErrorResponse
 import com.finedu.app.auth.data.LoginRequest // <-- 1. Importa el LoginRequest
 import com.finedu.app.auth.data.RegisterRequest
 import com.finedu.app.data.SessionRepository // <-- 2. Importa la "caja fuerte"
 import com.finedu.app.data.UserSessionData // <-- 3. Importa el paquete de sesión
+import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,10 +21,9 @@ import javax.inject.Inject
 
 @HiltViewModel
 class RegisterViewModel @Inject constructor(
-    private val authApiService: AuthApiService, // <-- 4. COMA CORREGIDA
+    private val authApiService: AuthApiService,
     private val sessionRepository: SessionRepository
 ) : ViewModel() {
-
     private val _state = MutableStateFlow(RegisterState())
     val state: StateFlow<RegisterState> = _state.asStateFlow()
 
@@ -40,35 +41,45 @@ class RegisterViewModel @Inject constructor(
             _state.update { it.copy(isLoading = true, error = null) }
 
             try {
-                // --- 5. CORRECCIÓN LÓGICA (Auto-Login) ---
-
-                // PASO 1: REGISTRAR
                 val regRequest = RegisterRequest(
-                    name = name, // <-- 6. CORRECCIÓN DE CAMPO (name, no displayName)
+                    name = name,
                     email = email,
                     password = password
                 )
                 val regResponse = authApiService.register(regRequest)
 
                 if (!regResponse.isSuccessful || regResponse.body()?.user == null) {
-                    val errorMessage = when (regResponse.code()) {
-                        400 -> "Email ya está registrado o datos inválidos"
-                        else -> regResponse.body()?.error ?: "Error: ${regResponse.code()}"
+
+                    val errorBody = regResponse.errorBody()?.string()
+                    var errorMessage = "Error: ${regResponse.code()}" // Mensaje por defecto
+
+                    if (errorBody != null) {
+                        try {
+                            val gson = Gson()
+                            val errorResponse = gson.fromJson(errorBody, ErrorResponse::class.java)
+                            errorMessage = when (errorResponse.error?.message) {
+                                "EMAIL_EXISTS" -> "Este email ya está registrado."
+                                "WEAK_PASSWORD" -> "La contraseña es muy débil (debe tener al menos 6 caracteres)."
+                                "INVALID_EMAIL" -> "El formato del email es incorrecto."
+                                // Añade más traducciones de Firebase aquí
+                                else -> errorResponse.error?.message ?: "Error desconocido."
+                            }
+                        } catch (e: Exception) {
+                            Log.e("RegisterViewModel", "❌ No se pudo parsear el JSON de error", e)
+                            errorMessage = "Error de respuesta del servidor."
+                        }
                     }
                     _state.update { it.copy(isLoading = false, error = errorMessage) }
-                    return@launch // Detiene si el registro falla
+                    Log.e("RegisterViewModel", "❌ Error HTTP: ${regResponse.code()} - $errorMessage")
+                    return@launch
                 }
 
-                Log.d("RegisterViewModel", "✅ Registro exitoso. Iniciando sesión automáticamente...")
-
-                // PASO 2: INICIAR SESIÓN (AUTO-LOGIN)
                 val logRequest = LoginRequest(email, password)
                 val logResponse = authApiService.login(logRequest)
                 val loginBody = logResponse.body()
 
                 if (logResponse.isSuccessful && loginBody?.user != null && loginBody.tokens != null) {
 
-                    // PASO 3: GUARDAR SESIÓN
                     val user = loginBody.user
                     val tokens = loginBody.tokens
 
@@ -83,20 +94,16 @@ class RegisterViewModel @Inject constructor(
                         name = user.displayName,
                     )
 
-                    // ¡Guardamos en la caja fuerte!
                     sessionRepository.saveSession(sessionData)
 
-                    // PASO 4: MARCAR ÉXITO
                     _state.update { it.copy(isLoading = false, isSuccess = true) }
                     Log.d("RegisterViewModel", "✅ ¡Sesión automática guardada!")
 
                 } else {
-                    // El registro funcionó, pero el auto-login falló.
                     _state.update { it.copy(isLoading = false, error = "Registro exitoso, pero el auto-login falló. Intenta iniciar sesión manualmente.") }
                 }
 
             } catch (e: Exception) {
-                // (Tu manejo de excepciones se queda igual, ¡está perfecto!)
                 val errorMessage = when {
                     e.message?.contains("Unable to resolve host") == true -> "Sin conexión a internet"
                     else -> "Error: ${e.localizedMessage}"
@@ -106,7 +113,6 @@ class RegisterViewModel @Inject constructor(
             }
         }
     }
-
     fun clearError() {
         _state.value = _state.value.copy(error = null)
     }

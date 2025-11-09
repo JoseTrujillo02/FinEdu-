@@ -19,7 +19,6 @@ fun TermsScreen(navController: NavController) {
             TopAppBar(
                 title = { Text("Términos y Condiciones") },
                 navigationIcon = {
-                    // Botón para volver a la pantalla anterior (Register)
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
                     }
@@ -27,41 +26,132 @@ fun TermsScreen(navController: NavController) {
             )
         }
     ) { paddingValues ->
-        // Usamos LazyColumn para que el texto sea deslizable
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp)
         ) {
+
             item {
                 Text(
-                    text = "Sección 1: Introducción",
+                    text = "TÉRMINOS Y CONDICIONES DE USO DE LA APLICACIÓN FINEDU",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. " +
-                            "Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. " +
-                            "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris " +
-                            "nisi ut aliquip ex ea commodo consequat..."
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
+                Text("Última actualización: 06 de noviembre de 2025")
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // --------------------- 1
                 Text(
-                    text = "Sección 2: Uso de la Aplicación",
-                    style = MaterialTheme.typography.titleLarge,
+                    text = "1. Aceptación de los Términos",
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Duis aute irure dolor in reprehenderit in voluptate velit " +
-                            "esse cillum dolore eu fugiat nulla pariatur. Excepteur sint " +
-                            "occaecat cupidatat non proident, sunt in culpa qui officia " +
-                            "deserunt mollit anim id est laborum..."
+                    text = "Al utilizar FinEdu, usted declara que ha leído, entendido y acepta estos Términos y Condiciones. " +
+                            "Si no está de acuerdo con cualquiera de ellos, debe dejar de utilizar la aplicación."
                 )
-                // ... (Puedes añadir más items para todo tu texto legal)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // --------------------- 2
+                Text(
+                    text = "2. Objetivo de la Aplicación",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "FinEdu es una herramienta destinada a ayudar a los usuarios a gestionar y visualizar sus ingresos, " +
+                            "gastos y capital personal con fines educativos e informativos. FinEdu no es una institución financiera, " +
+                            "no maneja dinero real ni ofrece asesoramiento financiero profesional."
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // --------------------- 3
+                Text(
+                    text = "3. Registro y Seguridad de la Cuenta",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "El usuario es responsable de mantener la confidencialidad de sus datos de acceso y de todas las actividades realizadas en su cuenta."
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // --------------------- 4
+                Text(
+                    text = "4. Uso Adecuado",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "El usuario acepta no utilizar la aplicación para actividades ilícitas, fraudulentas o que afecten el funcionamiento normal del sistema."
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // --------------------- 5
+                Text(
+                    text = "5. Privacidad y Datos",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "FinEdu almacena información mínima necesaria para el funcionamiento del sistema, como ingresos, gastos y preferencias. " +
+                            "Los datos no son compartidos con terceros sin autorización del usuario."
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // --------------------- 6
+                Text(
+                    text = "6. Limitación de Responsabilidad",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "FinEdu no garantiza la exactitud absoluta de los análisis estadísticos ni se responsabiliza por decisiones financieras tomadas por el usuario basadas en la aplicación."
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // --------------------- 7
+                Text(
+                    text = "7. Eliminación de Cuenta y Datos",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "El usuario puede solicitar la eliminación total y definitiva de su cuenta. " +
+                            "Una vez eliminados, los datos no podrán recuperarse."
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // --------------------- 8
+                Text(
+                    text = "8. Modificaciones de los Términos",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "FinEdu se reserva el derecho de actualizar estos términos en cualquier momento. " +
+                            "Los usuarios serán notificados en caso de cambios relevantes."
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text(
+                    text = "Si tiene dudas o comentarios: 1930050@uttt.edu.mx",
+                    fontWeight = FontWeight.Light
+                )
+                Spacer(modifier = Modifier.height(40.dp))
             }
         }
     }

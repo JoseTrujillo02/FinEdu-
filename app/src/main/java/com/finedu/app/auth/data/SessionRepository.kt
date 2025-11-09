@@ -14,11 +14,8 @@ import javax.inject.Singleton
 
 @Singleton
 class SessionRepository @Inject constructor(
-    // 1. Hilt inyecta el DataStore que creamos en DataModule
     private val dataStore: DataStore<Preferences>
 ) {
-
-    // 2. Definimos las "llaves" para guardar cada dato
     private object PrefKeys {
         val ID_TOKEN = stringPreferencesKey("id_token")
         val REFRESH_TOKEN = stringPreferencesKey("refresh_token")
@@ -48,8 +45,6 @@ class SessionRepository @Inject constructor(
     fun getStoredSession(): Flow<UserSessionData?> {
         return dataStore.data
             .catch { exception ->
-                // dataStore.data puede lanzar un error si hay un problema
-                // al leer el archivo (ej. corrupción)
                 if (exception is IOException) {
                     emit(emptyPreferences())
                 } else {
@@ -63,8 +58,6 @@ class SessionRepository @Inject constructor(
                 val uid = preferences[PrefKeys.UID]
                 val email = preferences[PrefKeys.EMAIL]
                 val name = preferences[PrefKeys.NAME]
-
-                // Si falta algún dato esencial, consideramos que no hay sesión
                 if (idToken == null || uid == null || email == null || name == null || refreshToken == null) {
                     null
                 } else {

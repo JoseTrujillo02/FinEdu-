@@ -11,10 +11,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
-// Este es el nombre de tu archivo de sesión en el teléfono
 private const val SESSION_PREFERENCES = "session_prefs"
 
-// Creamos una extensión para acceder al DataStore
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
     name = SESSION_PREFERENCES
 )

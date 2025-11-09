@@ -17,10 +17,12 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,134 +37,196 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.finedu.app.ui.dictation.UiEvent
+import kotlinx.coroutines.launch
 
 @Composable
 fun ProfileScreen(
     navController: NavController,
-    onLogoutClick: () -> Unit, // Función para manejar el cierre de sesión
+    onLogoutClick: () -> Unit,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
-
-    // Usamos LazyColumn para que la pantalla sea deslizable
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-    ) {
-
-        item {
-            ProfileHeader(
-                name = state.name, // O usa state.name si lo tienes
-                email = state.email, // "c.andres@gmail.com"
-                onSettingsClick = { /* TODO: Navegar a ajustes de perfil */ }
-            )
-        }
-
-        // --- 2. Tarjetas de Configuración ---
-        item { Spacer(modifier = Modifier.height(8.dp)) } // Espacio después de la cabecera
-        item {
-            ConfigCard(
-                title = "Configuración de Capital",
-                subtitle = "Define tu capital y la frecuencia",
-                icon = Icons.Outlined.AccountBalanceWallet
-            ) {
-                // Este bloque es el 'expandedContent'
-                ConfiguracionCapitalContent()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    // --- 6. ESCUCHA LOS EVENTOS DE ÉXITO/ERROR ---
+    LaunchedEffect(key1 = true) {
+        viewModel.uiEvent.collect { event ->
+            when (event) {
+                is UiEvent.Success -> {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(event.message)
+                    }
+                }
+                is UiEvent.Error -> {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(event.message, withDismissAction = true)
+                    }
+                }
             }
         }
-        item {
-            ConfigCard(
-                title = "Notificaciones",
-                subtitle = "Configura alertas sobre notificaciones",
-                icon = Icons.Outlined.Notifications
-            ) {
-                // Contenido expandido para Notificaciones
-                NotificacionesContent()
-            }
-        }
-        item {
-            ConfigCard(
-                title = "Privacidad y Seguridad",
-                subtitle = "Controla tu privacidad y seguridad",
-                icon = Icons.Outlined.Lock
-            ) {
-                // Contenido expandido para Privacidad
-                PrivacidadContent()
-            }
-        }
-        item {
-            ConfigCard(
-                title = "Preferencias de la App",
-                subtitle = "Personaliza tu experiencia",
-                icon = Icons.Outlined.Tune
-            ) {
-                // Contenido expandido para Preferencias
-                PreferenciasContent()
-            }
-        }
+    }
+    Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+    ) { paddingValues ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues) // <-- 8. Usa el padding del Scaffold
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+        ) {
 
-        // --- 3. Enlaces de Ayuda ---
-        item { Spacer(modifier = Modifier.height(16.dp)) }
-        item {
-            InfoLink(
-                title = "Contactar Soporte",
-                icon = Icons.Outlined.ContactSupport,
-                onClick = { /* TODO: Abrir chat de soporte */ }
-            )
-        }
-        item {
-            InfoLink(
-                title = "Política de Privacidad",
-                icon = Icons.Outlined.Policy,
-                onClick = { /* TODO: Abrir enlace web */ }
-            )
-        }
-        item {
-            InfoLink(
-                title = "Centro de Ayuda",
-                icon = Icons.Outlined.HelpOutline,
-                onClick = { /* TODO: Abrir enlace web */ }
-            )
-        }
+            item {
+                ProfileHeader(
+                    name = state.name,
+                    email = state.email
+                )
+            }
 
-        // --- 4. Acciones de Peligro ---
-        item {
-            ActionLink(
-                title = "Cerrar Sesión",
-                icon = Icons.Outlined.Logout,
-                // ¡Usamos la función que nos pasaron!
-                onClick = onLogoutClick
-            )
-        }
-        item {
-            ActionLink(
-                title = "Eliminar Cuenta",
-                icon = Icons.Outlined.DeleteForever,
-                color = MaterialTheme.colorScheme.error,
-                onClick = { /* TODO: Mostrar diálogo de confirmación */ }
-            )
-        }
+            item { Spacer(modifier = Modifier.height(8.dp)) }
 
-        // --- 5. Footer (Versión) ---
-        item {
-            Text(
-                text = "FinEdu v1.0.0\n© 2024 Todos los derechos reservados",
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.Gray,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 24.dp)
-            )
+            item {
+                ConfigCard(
+                    title = "Configuración de Capital",
+                    subtitle = "Define tu capital y la frecuencia",
+                    icon = Icons.Outlined.AccountBalanceWallet
+                ) {
+                    ConfiguracionCapitalContent(
+                        onSave = { monto, frecuencia ->
+                            viewModel.saveCapital(monto, frecuencia)
+                        }
+                    )
+                }
+            }
+            item {
+                ConfigCard(
+                    title = "Notificaciones",
+                    subtitle = "Configura alertas sobre notificaciones",
+                    icon = Icons.Outlined.Notifications
+                ) {
+                    NotificacionesContent()
+                }
+            }
+            item {
+                ConfigCard(
+                    title = "Privacidad y Seguridad",
+                    subtitle = "Controla tu privacidad y seguridad",
+                    icon = Icons.Outlined.Lock
+                ) {
+                    PrivacidadContent()
+                }
+            }
+            item {
+                ConfigCard(
+                    title = "Preferencias de la App",
+                    subtitle = "Personaliza tu experiencia",
+                    icon = Icons.Outlined.Tune
+                ) {
+                    PreferenciasContent()
+                }
+            }
+
+            item { Spacer(modifier = Modifier.height(8.dp)) }
+            item {
+                ConfigCard(
+                    title = "Configuración de Capital",
+                    subtitle = "Define tu capital y la frecuencia",
+                    icon = Icons.Outlined.AccountBalanceWallet
+                ) {
+                    // Pásale la función 'saveCapital' del ViewModel
+                    ConfiguracionCapitalContent(
+                        onSave = { monto, frecuencia ->
+                            viewModel.saveCapital(monto, frecuencia)
+                        }
+                    )
+                }
+            }
+            item {
+                ConfigCard(
+                    title = "Notificaciones",
+                    subtitle = "Configura alertas sobre notificaciones",
+                    icon = Icons.Outlined.Notifications
+                ) {
+                    NotificacionesContent()
+                }
+            }
+            item {
+                ConfigCard(
+                    title = "Privacidad y Seguridad",
+                    subtitle = "Controla tu privacidad y seguridad",
+                    icon = Icons.Outlined.Lock
+                ) {
+                    PrivacidadContent()
+                }
+            }
+            item {
+                ConfigCard(
+                    title = "Preferencias de la App",
+                    subtitle = "Personaliza tu experiencia",
+                    icon = Icons.Outlined.Tune
+
+                ) {
+                    PreferenciasContent()
+                }
+            }
+
+            item { Spacer(modifier = Modifier.height(16.dp)) }
+            item {
+                InfoLink(
+                    title = "Contactar Soporte",
+                    icon = Icons.Outlined.ContactSupport,
+                    onClick = { /* TODO: Abrir chat de soporte */ }
+                )
+            }
+            item {
+
+                InfoLink(
+                    title = "Política de Privacidad",
+                    icon = Icons.Outlined.Policy,
+                    onClick = { /* TODO: Abrir enlace web */ }
+                )
+            }
+            item {
+                InfoLink(
+                    title = "Centro de Ayuda",
+                    icon = Icons.Outlined.HelpOutline,
+                    onClick = { /* TODO: Abrir enlace web */ }
+                )
+            }
+            item {
+
+                ActionLink(
+                    title = "Cerrar Sesión",
+                    icon = Icons.Outlined.Logout,
+                    onClick = onLogoutClick
+                )
+            }
+            item {
+                ActionLink(
+                    title = "Eliminar Cuenta",
+                    icon = Icons.Outlined.DeleteForever,
+                    color = MaterialTheme.colorScheme.error,
+                    onClick = { /* TODO: Mostrar diálogo de confirmación */ }
+                )
+
+            }
+
+            item {
+                Text(
+                    text = "FinEdu v1.0.0\n© 2024 Todos los derechos reservados",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.Gray,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp)
+                )
+            }
         }
     }
 }
 
-// --- Componentes Reutilizables ---
-// (Estos van en el mismo archivo, debajo de la función principal)
-
 @Composable
-fun ProfileHeader(name: String, email: String, onSettingsClick: () -> Unit) {
+fun ProfileHeader(name: String, email: String) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -201,13 +265,7 @@ fun ProfileHeader(name: String, email: String, onSettingsClick: () -> Unit) {
             Text(text = email, color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
         }
 
-        // Icono de Ajustes (arriba a la derecha)
-        IconButton(
-            onClick = onSettingsClick,
-            modifier = Modifier.align(Alignment.TopEnd)
-        ) {
-            Icon(Icons.Default.Settings, contentDescription = "Ajustes", tint = Color.White)
-        }
+
     }
 }
 @Composable
@@ -298,18 +356,16 @@ fun ActionLink(title: String, icon: ImageVector, color: Color = Color.Red, onCli
         Text(text = title, modifier = Modifier.weight(1f), fontSize = 14.sp, color = color)
     }
 }
-
-@OptIn(ExperimentalMaterial3Api::class) // <-- ¡AÑADE ESTA LÍNEA!
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ConfiguracionCapitalContent() {
+fun ConfiguracionCapitalContent(
+    onSave: (String, String) -> Unit
+) {
     var monto by remember { mutableStateOf("$ 0.00") }
-
-    // --- 1. Define tus opciones y el estado de expansión ---
     val opcionesFrecuencia = listOf("Semanal", "Quincenal", "Mensual")
     var isFrecuenciaExpanded by remember { mutableStateOf(false) }
-    var frecuencia by remember { mutableStateOf(opcionesFrecuencia[2]) } // "Mensual" por defecto
+    var frecuencia by remember { mutableStateOf(opcionesFrecuencia[2]) }
 
-    // (El campo de "Monto de Capital" se queda igual)
     OutlinedTextField(
         value = monto,
         onValueChange = { monto = it },
@@ -318,41 +374,35 @@ fun ConfiguracionCapitalContent() {
         modifier = Modifier.fillMaxWidth()
     )
     Spacer(modifier = Modifier.height(8.dp))
-
-    // --- 2. Reemplaza tu TextField de Frecuencia por este Box ---
     ExposedDropdownMenuBox(
         expanded = isFrecuenciaExpanded,
-        onExpandedChange = { isFrecuenciaExpanded = !isFrecuenciaExpanded }, // Abre/cierra el menú
+        onExpandedChange = { isFrecuenciaExpanded = !isFrecuenciaExpanded },
         modifier = Modifier.fillMaxWidth()
     ) {
-        // --- 3. Este es el TextField que se MUESTRA (el "ancla") ---
         OutlinedTextField(
-            value = frecuencia, // Muestra la opción seleccionada
-            onValueChange = {}, // No permitas que se escriba
+            value = frecuencia,
+            onValueChange = {},
             readOnly = true,
             label = { Text("Frecuencia de Actualización") },
             trailingIcon = {
-                // Icono de flecha que rota automáticamente
                 ExposedDropdownMenuDefaults.TrailingIcon(expanded = isFrecuenciaExpanded)
             },
             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
             modifier = Modifier
                 .fillMaxWidth()
-                .menuAnchor() // ¡Importante! Esto conecta el TextField con el menú
+                .menuAnchor()
         )
 
-        // --- 4. Este es el Menú que se DESPLIEGA ---
         ExposedDropdownMenu(
             expanded = isFrecuenciaExpanded,
-            onDismissRequest = { isFrecuenciaExpanded = false } // Cierra si se hace clic fuera
+            onDismissRequest = { isFrecuenciaExpanded = false }
         ) {
-            // 5. Itera sobre tus opciones y crea un item por cada una
             opcionesFrecuencia.forEach { option ->
                 DropdownMenuItem(
                     text = { Text(option) },
                     onClick = {
-                        frecuencia = option // Actualiza el estado con la nueva opción
-                        isFrecuenciaExpanded = false // Cierra el menú
+                        frecuencia = option
+                        isFrecuenciaExpanded = false
                     }
                 )
             }
@@ -361,13 +411,14 @@ fun ConfiguracionCapitalContent() {
 
     Spacer(modifier = Modifier.height(16.dp))
     Button(
-        onClick = { /* TODO: Guardar capital (ahora puedes usar 'monto' y 'frecuencia') */ },
+        onClick = {
+            onSave(monto, frecuencia)
+        },
         modifier = Modifier.fillMaxWidth()
     ) {
         Text("Guardar")
     }
 }
-
 @Composable
 fun NotificacionesContent() {
     var switch1 by remember { mutableStateOf(false) }
@@ -422,9 +473,6 @@ fun PreferenciasContent() {
         Text("Exportar Datos")
     }
 }
-
-// --- COMPONENTE DE AYUDA (NUEVO) ---
-
 @Composable
 fun ConfigRowWithSwitch(
     title: String,

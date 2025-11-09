@@ -26,11 +26,8 @@ class MainDashboardViewModel @Inject constructor(
         loadDashboardDataForThisMonth()
     }
 
-    // --- ¡CAMBIO AQUÍ! ---
-    // 1. Quitamos la palabra 'private'
     fun loadDashboardDataForThisMonth() {
         viewModelScope.launch {
-            // 2. Nos aseguramos de poner 'isLoading = true' al inicio
             _state.update { it.copy(isLoading = true, error = null) }
 
             val session = sessionRepository.getStoredSession().firstOrNull()
@@ -39,15 +36,12 @@ class MainDashboardViewModel @Inject constructor(
                 return@launch
             }
             val token = "Bearer ${session.idToken}"
-
-            // ... (Lógica de fechas)
             val cal = Calendar.getInstance()
             val year = cal.get(Calendar.YEAR)
             val month = cal.get(Calendar.MONTH) + 1
             val fromDate = "$year-${String.format("%02d", month)}-01"
 
             try {
-                // ... (Lógica de API)
                 val response = authApiService.getTransactions(token = token, from = fromDate)
 
                 if (response.isSuccessful && response.body() != null) {

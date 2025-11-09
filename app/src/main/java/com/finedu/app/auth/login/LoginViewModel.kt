@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.finedu.app.auth.data.AuthApiService
+import com.finedu.app.auth.data.ErrorResponse
 import com.finedu.app.auth.data.LoginRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,13 +14,13 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.finedu.app.data.SessionRepository
 import com.finedu.app.data.UserSessionData
+import com.google.gson.Gson
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val authApiService: AuthApiService,
     private val sessionRepository: SessionRepository
 ) : ViewModel() {
-
     private val _state = MutableStateFlow(LoginState())
     val state: StateFlow<LoginState> = _state.asStateFlow()
 
@@ -41,14 +42,11 @@ class LoginViewModel @Inject constructor(
                 if (response.isSuccessful) {
                     val loginResponse = response.body()
 
-                    // Verificar si hay un usuario en la respuesta
                     if (loginResponse?.user != null && loginResponse.tokens != null && loginResponse.error == null) {
 
-                        // 1. Extraemos los datos del response
                         val user = loginResponse.user
                         val tokens = loginResponse.tokens
 
-                        // 2. Creamos nuestro paquete de sesión (Paso 2)
                         val sessionData = UserSessionData(
                             idToken = tokens.idToken,
                             refreshToken = tokens.refreshToken,
@@ -57,9 +55,7 @@ class LoginViewModel @Inject constructor(
                             name = user.displayName
                         )
 
-                        // 3. ¡Guardamos en la caja fuerte!
                         sessionRepository.saveSession(sessionData)
-
                         _state.value = _state.value.copy(
                             isLoading = false,
                             isSuccess = true
@@ -74,11 +70,27 @@ class LoginViewModel @Inject constructor(
                         Log.e("LoginViewModel", "❌ Error: ${loginResponse?.error}")
                     }
                 } else {
-                    _state.value = _state.value.copy(
-                        isLoading = false,
-                        error = "Error del servidor: ${response.code()}"
-                    )
-                    Log.e("LoginViewModel", "❌ Error HTTP: ${response.code()}")
+                    val errorBody = response.errorBody()?.string()
+                    var errorMessage = "Error: ${response.code()}"
+                    if (errorBody != null) {
+                        try {
+                            val gson = Gson()
+                            val errorResponse = gson.fromJson(errorBody, ErrorResponse::class.java)
+                            errorMessage = when (errorResponse.error?.message) {
+                                "INVALID_LOGIN_CREDENTIALS" -> "Email o contraseña incorrectos."
+                                "EMAIL_NOT_FOUND" -> "Este email no está registrado."
+                                else -> errorResponse.error?.message ?: "Error desconocido."
+                            }
+                        } catch (e: Exception) {
+                            Log.e("LoginViewModel", "❌ No se pudo parsear el JSON de error", e)
+                            errorMessage = "Error de respuesta del servidor."
+                        }
+                        _state.value = _state.value.copy(
+                            isLoading = false,
+                            error = errorMessage
+                        )
+                        Log.e("LoginViewModel", "❌ Error HTTP: ${response.code()} - $errorMessage")
+                    }
                 }
             } catch (e: Exception) {
                 val errorMessage = when {

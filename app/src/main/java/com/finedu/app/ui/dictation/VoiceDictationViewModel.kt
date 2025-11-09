@@ -16,12 +16,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-// 1. Define el estado de la pantalla
 data class VoiceDictationState(
     val isLoading: Boolean = false
 )
 
-// 4. Define los eventos que la UI puede recibir
 sealed class UiEvent {
     data class Success(val message: String) : UiEvent()
     data class Error(val message: String) : UiEvent()
@@ -36,9 +34,8 @@ class VoiceDictationViewModel @Inject constructor(
     private val _state = MutableStateFlow(VoiceDictationState())
     val state = _state.asStateFlow()
     private val _uiEvent = Channel<UiEvent>()
-    val uiEvent = _uiEvent.receiveAsFlow() // La UI escuchará de aquí
+    val uiEvent = _uiEvent.receiveAsFlow()
 
-    // 2. Esta es la función que llamará tu UI
     fun sendMessage(message: String) {
         viewModelScope.launch {
             // Pone la UI en modo "Cargando"
@@ -47,10 +44,10 @@ class VoiceDictationViewModel @Inject constructor(
             val session = sessionRepository.getStoredSession().firstOrNull()
             if (session == null) {
                 _state.update { it.copy(isLoading = false) }
-                _uiEvent.send(UiEvent.Error("No hay sesión activa")) // Envía evento de error
+                _uiEvent.send(UiEvent.Error("No hay sesión activa"))
                 return@launch
             }
-            // Prepara el token "Bearer"
+
             val token = "Bearer ${session.idToken}"
             val request = DictationRequest(mensaje = message)
             try {
@@ -58,16 +55,13 @@ class VoiceDictationViewModel @Inject constructor(
 
                 if (response.isSuccessful) {
                     _state.update { it.copy(isLoading = false) }
-                    // Envía un evento de éxito
                     _uiEvent.send(UiEvent.Success("¡Enviado con éxito!"))
                 } else {
                     _state.update { it.copy(isLoading = false) }
-                    // Envía un evento de error
                     _uiEvent.send(UiEvent.Error("Error: ${response.code()}"))
                 }
             } catch (e: Exception) {
                 _state.update { it.copy(isLoading = false) }
-                // Envía un evento de error
                 _uiEvent.send(UiEvent.Error(e.message ?: "Error de red"))
             }
         }

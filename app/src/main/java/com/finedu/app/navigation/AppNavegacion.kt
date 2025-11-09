@@ -1,5 +1,7 @@
 package com.finedu.app.navigation
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -30,6 +32,7 @@ import javax.inject.Inject
 class SessionViewModel @Inject constructor(
     val repository: SessionRepository
 ) : ViewModel()
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun AppNavegacion() {
     val navController = rememberNavController()
@@ -122,13 +125,13 @@ fun AppNavegacion() {
         composable(AppRutas.NOTIFICATIONS_SCREEN) {
             NotificationsScreen(navController = navController)
         }
+
         composable(AppRutas.PROFILE_SCREEN) {
             ProfileScreen(
                 navController = navController,
                 onLogoutClick = {
-                    // 5. ¡Lanza la corutina para el logout!
                     scope.launch {
-                        sessionRepository.clearSession() // Llama a la suspend fun
+                        sessionRepository.clearSession()
 
                         // Navega al Login
                         navController.navigate(AppRutas.LOGIN_SCREEN) {
@@ -138,6 +141,7 @@ fun AppNavegacion() {
                 }
             )
         }
+
         composable(AppRutas.TERMS_SCREEN) {
             TermsScreen(navController = navController)
         }

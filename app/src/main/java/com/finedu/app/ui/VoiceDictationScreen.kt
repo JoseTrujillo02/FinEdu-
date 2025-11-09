@@ -2,12 +2,11 @@ package com.finedu.app.ui
 
 import android.app.Activity
 import android.content.Intent
-import android.speech.RecognizerIntent
+import android.speech.RecognizerIntent // <-- 1. ¡IMPORTA ESTO!
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.*
@@ -21,42 +20,31 @@ import androidx.navigation.NavController
 import com.finedu.app.ui.dictation.UiEvent
 import com.finedu.app.ui.dictation.VoiceDictationViewModel
 
-/**
- * Composible para la interfaz de dictado y reconocimiento de voz.
- */
 @Composable
 fun VoiceDictationScreen(
     navController: NavController,
     viewModel: VoiceDictationViewModel
 ) {
-
     val state by viewModel.state.collectAsState()
     var recognizedText by remember { mutableStateOf("") }
     val context = LocalContext.current
-
-    // --- 1. PREPARA EL SNACKBAR ---
     val snackbarHostState = remember { SnackbarHostState() }
-
-    // --- 2. ESCUCHA LOS EVENTOS DE ÉXITO/ERROR ---
-    // (Este LaunchedEffect se ejecuta una vez y escucha los "eventos únicos")
     LaunchedEffect(key1 = true) {
         viewModel.uiEvent.collect { event ->
             when (event) {
                 is UiEvent.Success -> {
-                    // Muestra el banner de éxito
-                    snackbarHostState.showSnackbar(
-                        message = event.message,
-                        duration = SnackbarDuration.Short
-                    )
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("show_success_snackbar", event.message)
                     navController.previousBackStackEntry
                         ?.savedStateHandle
                         ?.set("refresh_transactions", true)
+                    navController.popBackStack()
                 }
                 is UiEvent.Error -> {
-                    // Muestra el banner de error
                     snackbarHostState.showSnackbar(
                         message = event.message,
-                        duration = SnackbarDuration.Long, // Más tiempo para leer el error
+                        duration = SnackbarDuration.Long,
                         withDismissAction = true
                     )
                 }
@@ -64,15 +52,22 @@ fun VoiceDictationScreen(
         }
     }
 
-    // --- (Tu lógica de reconocimiento de voz se queda igual) ---
     val speechRecognizerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             val data: Intent? = result.data
             val matches = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+
             if (!matches.isNullOrEmpty()) {
-                recognizedText = matches[0]
+                val newText = matches[0]
+                recognizedText = newText
+
+                if (newText.isNotBlank()) {
+                    viewModel.sendMessage(newText)
+                }
+                // --- FIN ---
+
             }
         } else {
             recognizedText = "Reconocimiento cancelado o fallido."
@@ -83,8 +78,13 @@ fun VoiceDictationScreen(
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es")
-            putExtra(RecognizerIntent.EXTRA_PROMPT, "¡Habla ahora para dictar!")
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "¡Habla ahora! (Se enviará tras 5s de silencio)")
+
+            // --- ¡LA LÍNEA MÁGICA! ---
+            // Le dice al dictado que espere 5 segundos de silencio antes de detenerse
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 5000L) // 5000ms = 5s
         }
+
         if (intent.resolveActivity(context.packageManager) != null) {
             speechRecognizerLauncher.launch(intent)
         } else {
@@ -92,25 +92,24 @@ fun VoiceDictationScreen(
         }
     }
 
-    // --- 3. ENVUELVE TU UI EN UN SCAFFOLD ---
+    // --- 4. MODIFICAMOS LA UI ---
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { paddingValues ->
 
-        // Columna principal con tu UI
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues) // Padding del Scaffold
-                .padding(24.dp), // Tu padding original
+                .padding(paddingValues)
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
 
-            // --- BOTÓN DE VOLVER (se queda igual) ---
+            // --- (Botón de Volver y Título se quedan igual) ---
             Box(modifier = Modifier.fillMaxWidth()) {
                 IconButton(
-                    onClick = { navController.popBackStack() },
+                    onClick = { navController.popBackStack() }, // Acción de volver
                     modifier = Modifier.align(Alignment.CenterStart)
                 ) {
                     Icon(Icons.Filled.ArrowBack, contentDescription = "Volver")
@@ -124,15 +123,10 @@ fun VoiceDictationScreen(
                 )
             }
 
-            // --- 4. ELIMINAMOS LOS AnimatedVisibility Y Text(Error) ---
-            // (Ya no son necesarios, el Snackbar los reemplaza)
-
-            // Campo de texto para el resultado
             OutlinedTextField(
                 value = recognizedText,
                 onValueChange = { recognizedText = it },
                 label = { Text("Texto Dictado / Edítame") },
-                // Se deshabilita solo si está cargando
                 readOnly = state.isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -141,27 +135,9 @@ fun VoiceDictationScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Botón para iniciar el dictado
             Button(
                 onClick = startSpeechRecognition,
-                // Se deshabilita solo si está cargando
                 enabled = !state.isLoading,
-                contentPadding = PaddingValues(horizontal = 30.dp, vertical = 15.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Black,
-                    contentColor = Color.White
-                )
-            ) {
-                Icon(Icons.Filled.Mic, contentDescription = "Micrófono")
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Botón para enviar la solicitud
-            Button(
-                onClick = { viewModel.sendMessage(recognizedText) },
-                // Se deshabilita si está cargando O si el texto está vacío
-                enabled = !state.isLoading && recognizedText.isNotBlank(),
                 contentPadding = PaddingValues(horizontal = 30.dp, vertical = 15.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Black,
@@ -175,11 +151,11 @@ fun VoiceDictationScreen(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text("Enviar")
+                    Text("Dictar y Enviar")
                     Spacer(modifier = Modifier.width(8.dp))
-                    Icon(Icons.Filled.Add, contentDescription = "enviar")
+                    Icon(Icons.Filled.Mic, contentDescription = "Micrófono")
                 }
             }
-        } // Fin de Column
-    } // Fin de Scaffold
+        }
+    }
 }

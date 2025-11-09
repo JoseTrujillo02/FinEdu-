@@ -6,8 +6,7 @@ import retrofit2.http.Header
 import retrofit2.http.POST
 
 interface FinancialAiService {
-
-    @POST("/clasificar_gasto") // La ruta relativa a la nueva URL base
+    @POST("/clasificar_gasto")
     suspend fun sendDictation(
         @Header("Authorization") token: String,
         @Body request: DictationRequest

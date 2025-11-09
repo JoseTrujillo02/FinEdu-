@@ -2,7 +2,9 @@
 
 package com.finedu.app.ui
 
-// --- 1. IMPORTS ---
+
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -17,15 +19,16 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Refresh // <-- ¡Importa el icono de Refrescar!
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.livedata.observeAsState
-// (Ya no se importan 'pulltorefresh' ni 'nestedScroll')
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,9 +46,13 @@ import com.finedu.app.navigation.AppRutas
 import com.finedu.app.ui.dashboard.MainDashboardState
 import com.finedu.app.ui.dashboard.MainDashboardViewModel // Importa el ViewModel
 import com.finedu.app.ui.dictation.VoiceDictationViewModel
+import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Locale
-// --- FIN DE IMPORTS ---
+import androidx.compose.runtime.State
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 
 sealed class MainScreenDestinations(val route: String) {
@@ -54,14 +61,16 @@ sealed class MainScreenDestinations(val route: String) {
     object Dictation : MainScreenDestinations("voice_dictation")
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MainScreen(mainNavController: NavController, onLogoutClick: () -> Unit) {
     val internalNavController = rememberNavController()
-
-    // Obtenemos el ViewModel aquí para pasárselo al TopBar
     val viewModel: MainDashboardViewModel = hiltViewModel()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             MainTopBar(
                 onNotificationClick = {
@@ -70,7 +79,6 @@ fun MainScreen(mainNavController: NavController, onLogoutClick: () -> Unit) {
                 onProfileClick = {
                     mainNavController.navigate(AppRutas.PROFILE_SCREEN)
                 },
-                // Añadimos la acción de refresco
                 onRefreshClick = {
                     viewModel.loadDashboardDataForThisMonth()
                 }
@@ -82,29 +90,37 @@ fun MainScreen(mainNavController: NavController, onLogoutClick: () -> Unit) {
             startDestination = MainScreenDestinations.Home.route,
             modifier = Modifier.padding(paddingValues)
         ) {
-
-            // 1. RUTA HOME
             composable(MainScreenDestinations.Home.route) {
 
-                // Obtenemos el estado del ViewModel
                 val state by viewModel.state.collectAsState()
                 val backStackEntry = internalNavController.currentBackStackEntry
-                val refreshResultState = backStackEntry
+
+                val refreshResultState: State<Boolean?>? = backStackEntry
                     ?.savedStateHandle
                     ?.getLiveData<Boolean>("refresh_transactions")
                     ?.observeAsState()
-
-                // --- 2. OBTIENE EL VALOR MANUALMENTE ---
                 val refreshResult = refreshResultState?.value
 
                 LaunchedEffect(refreshResult) {
                     if (refreshResult == true) {
                         viewModel.loadDashboardDataForThisMonth()
-                        // Resetea el "recado"
-                        backStackEntry?.savedStateHandle["refresh_transactions"] = false
+                        backStackEntry?.savedStateHandle?.set("refresh_transactions", false)
                     }
                 }
-                // --- FIN DE LA LÓGICA DEL RECADO ---
+                val successMessageState: State<String?>? = backStackEntry
+                    ?.savedStateHandle
+                    ?.getLiveData<String>("show_success_snackbar")
+                    ?.observeAsState()
+                val successMessage = successMessageState?.value
+
+                LaunchedEffect(successMessage) {
+                    if (successMessage != null) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar(message = successMessage)
+                        }
+                        backStackEntry?.savedStateHandle?.set("show_success_snackbar", null)
+                    }
+                }
 
                 HomeScreenDashboard(
                     onAddTransactionClick = {
@@ -113,8 +129,6 @@ fun MainScreen(mainNavController: NavController, onLogoutClick: () -> Unit) {
                     state = state
                 )
             }
-
-            // 2. Ruta de dictado por voz
             composable(MainScreenDestinations.Dictation.route) {
                 val dictationViewModel: VoiceDictationViewModel = hiltViewModel()
                 VoiceDictationScreen(
@@ -123,7 +137,6 @@ fun MainScreen(mainNavController: NavController, onLogoutClick: () -> Unit) {
                 )
             }
 
-            // 3. RUTA DE PERFIL (Placeholder)
             composable(MainScreenDestinations.Profile.route) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("Placeholder de Perfil Interno")
@@ -133,13 +146,12 @@ fun MainScreen(mainNavController: NavController, onLogoutClick: () -> Unit) {
     }
 }
 
-// --- Componentes de MainScreen ---
 
 @Composable
 fun MainTopBar(
     onNotificationClick: () -> Unit,
     onProfileClick: () -> Unit,
-    onRefreshClick: () -> Unit // <-- Acepta la nueva acción
+    onRefreshClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -191,14 +203,12 @@ fun MainTopBar(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun HomeScreenDashboard(
     onAddTransactionClick: () -> Unit,
     state: MainDashboardState
-    // (Ya no se necesita onRefresh aquí)
 ) {
-    // --- LÓGICA DE PULL-TO-REFRESH ELIMINADA ---
-
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -217,7 +227,7 @@ fun HomeScreenDashboard(
 
         item { AddTransactionCard(onClick = onAddTransactionClick) }
 
-        item { MetasCard() }
+        //item { MetasCard() }
 
         item {
             Text(
@@ -254,7 +264,6 @@ fun SaludFinancieraCard(ingresos: String, egresos: String) {
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text("Tu Salud Financiera", style = MaterialTheme.typography.titleMedium)
-            Text("Excelente - 30% de ahorro", color = Color(0xFF4CAF50), fontSize = 12.sp)
             Spacer(modifier = Modifier.height(16.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -264,7 +273,7 @@ fun SaludFinancieraCard(ingresos: String, egresos: String) {
                     imageVector = Icons.Default.MonetizationOn,
                     contentDescription = "Dinero",
                     modifier = Modifier.size(40.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -302,48 +311,7 @@ fun AddTransactionCard(onClick: () -> Unit) {
     }
 }
 
-@Composable
-fun MetasCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text("Metas", style = MaterialTheme.typography.titleMedium)
-            Spacer(modifier = Modifier.height(16.dp))
-            MetaItem(titulo = "Adquirir Automóvil", progreso = 0.85f)
-            Spacer(modifier = Modifier.height(16.dp))
-            MetaItem(titulo = "Adquirir Automóvil", progreso = 0.65f)
-        }
-    }
-}
-
-@Composable
-fun MetaItem(titulo: String, progreso: Float) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Image(
-            imageVector = Icons.Default.DirectionsCar,
-            contentDescription = titulo,
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-                .padding(8.dp)
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(titulo, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-            LinearProgressIndicator(
-                progress = progreso,
-                modifier = Modifier.fillMaxWidth().clip(CircleShape),
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
-            )
-        }
-        Text("${(progreso * 100).toInt()}%", fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 16.dp))
-    }
-}
-
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun TransactionItemRow(tx: TransactionItem) {
     val amountColor = if (tx.type == "expense") Color.Red else Color(0xFF4CAF50)
@@ -370,10 +338,25 @@ fun TransactionItemRow(tx: TransactionItem) {
                     .padding(8.dp)
             )
             Spacer(modifier = Modifier.width(16.dp))
+
+            // --- COLUMNA MODIFICADA ---
             Column(modifier = Modifier.weight(1f)) {
+                // 1. Categoría
                 Text(tx.category, fontWeight = FontWeight.SemiBold)
-                Text(tx.description ?: "", fontSize = 12.sp, color = Color.Gray)
+
+                Text(
+                    text = tx.description ?: "",
+                    fontSize = 12.sp,
+                    color = Color.Gray,
+                    maxLines = 1
+                )
+                Text(
+                    text = tx.date.toFriendlyDateString(),
+                    fontSize = 12.sp,
+                    color = Color.Gray,
+                )
             }
+
             Text(
                 text = "$amountPrefix${tx.amount.toCurrencyString()}",
                 color = amountColor,
@@ -383,10 +366,67 @@ fun TransactionItemRow(tx: TransactionItem) {
         }
     }
 }
-
-// --- FUNCIÓN DE AYUDA PARA FORMATEAR MONEDA ---
 fun Double.toCurrencyString(): String {
-    // Usamos Locale("es", "MX") para pesos mexicanos como ejemplo
     val format = NumberFormat.getCurrencyInstance(Locale("es", "MX"))
     return format.format(this)
 }
+
+@RequiresApi(Build.VERSION_CODES.O)
+fun String.toFriendlyDateString(): String {
+    return try {
+        val instant = Instant.parse(this) // Lee el string UTC
+        val formatter = DateTimeFormatter.ofPattern(
+            "d MMM, yyyy", // Formato: "9 Nov, 2025"
+            Locale("es", "MX") // Usa tu Locale
+        ).withZone(ZoneId.systemDefault()) // Convierte a la zona horaria del usuario
+
+        formatter.format(instant)
+    } catch (e: Exception) {
+        // Si la fecha está mal formateada, devuelve los primeros 10 caracteres
+        this.take(10)
+    }
+}
+
+
+
+//@Composable
+//fun MetasCard() {
+//    Card(
+//        modifier = Modifier.fillMaxWidth(),
+//        shape = RoundedCornerShape(20.dp),
+//        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+//    ) {
+//        Column(modifier = Modifier.padding(20.dp)) {
+//            Text("Metas", style = MaterialTheme.typography.titleMedium)
+//            Spacer(modifier = Modifier.height(16.dp))
+//            MetaItem(titulo = "Adquirir Automóvil", progreso = 0.85f)
+//            Spacer(modifier = Modifier.height(16.dp))
+//            MetaItem(titulo = "Adquirir Automóvil", progreso = 0.65f)
+//        }
+//    }
+//}
+
+//@Composable
+//fun MetaItem(titulo: String, progreso: Float) {
+//    Row(verticalAlignment = Alignment.CenterVertically) {
+//        Image(
+//            imageVector = Icons.Default.DirectionsCar,
+//            contentDescription = titulo,
+//            modifier = Modifier
+//                .size(40.dp)
+//                .clip(CircleShape)
+//                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+//                .padding(8.dp)
+//        )
+//        Spacer(modifier = Modifier.width(16.dp))
+//        Column(modifier = Modifier.weight(1f)) {
+//            Text(titulo, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+//            LinearProgressIndicator(
+//                progress = progreso,
+//                modifier = Modifier.fillMaxWidth().clip(CircleShape),
+//                trackColor = MaterialTheme.colorScheme.surfaceVariant
+//            )
+//        }
+//        Text("${(progreso * 100).toInt()}%", fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 16.dp))
+//    }
+//}

@@ -57,7 +57,7 @@ object NetworkModule {
         gson: Gson
     ): Retrofit {
         return Retrofit.Builder()
-            .baseUrl(AUTH_BASE_URL) // Esta es la URL de Auth
+            .baseUrl(AUTH_BASE_URL)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
@@ -77,12 +77,11 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideFinancialAiService(
-        okHttpClient: OkHttpClient, // <-- ¡Reutiliza el mismo OkHttpClient!
-        gson: Gson                  // <-- ¡Reutiliza el mismo Gson!
+        okHttpClient: OkHttpClient,
+        gson: Gson
     ): FinancialAiService {
-        // Crea una instancia de Retrofit "privada" solo para este servicio
         val retrofit = Retrofit.Builder()
-            .baseUrl(IA_BASE_URL) // <-- Usa la NUEVA URL base
+            .baseUrl(IA_BASE_URL)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create(gson))
             .build()

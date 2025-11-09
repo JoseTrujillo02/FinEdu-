@@ -64,8 +64,6 @@ fun RegisterScreen(
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop
         )
-
-        // Contenido centrado con scroll
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -97,8 +95,6 @@ fun RegisterScreen(
                     onDismiss = onDismissError
                 )
             }
-
-            // Card con efecto glassmorphism
             Box(
                 modifier = Modifier
                     .fillMaxWidth()

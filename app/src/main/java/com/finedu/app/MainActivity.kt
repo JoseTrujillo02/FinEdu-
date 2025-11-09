@@ -60,10 +60,6 @@ import dagger.hilt.android.AndroidEntryPoint
 
 class MainActivity : ComponentActivity() {
 
-
-
-// Tu lanzador de permisos (se queda igual)
-
     private val requestPermissions = registerForActivityResult(
 
         ActivityResultContracts.RequestMultiplePermissions()
@@ -124,8 +120,6 @@ class MainActivity : ComponentActivity() {
 
                 ) {
 
-// ¡Aquí solo llamamos al "Mapa de la App" que creamos!
-
                     AppNavegacion()
 
                 }
@@ -137,8 +131,6 @@ class MainActivity : ComponentActivity() {
     }
 
 
-
-// Tu función de permisos (se queda igual)
 
     private fun ensureRuntimePermissions() {
 
@@ -176,13 +168,5 @@ class MainActivity : ComponentActivity() {
 
 }
 
-// ⚠️ ¡Nota Importante!
 
-// Las funciones @Composable AppNavigation() y @Composable MainContent()
-
-// YA NO VAN AQUÍ.
-
-// Las hemos movido al archivo 'AppNavegacion.kt' (como te mostré en el paso anterior)
-
-// para mantener este archivo limpio.
 

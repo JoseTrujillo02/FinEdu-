@@ -6,9 +6,9 @@ package com.finedu.app.data
  * y para mostrar en el perfil.
  */
 data class UserSessionData(
-    val idToken: String,      // El token principal para la API
-    val refreshToken: String, // Para renovar el token cuando expire
-    val uid: String,          // El ID único del usuario
+    val idToken: String,
+    val refreshToken: String,
+    val uid: String,
     val email: String,
     val name: String
 )
