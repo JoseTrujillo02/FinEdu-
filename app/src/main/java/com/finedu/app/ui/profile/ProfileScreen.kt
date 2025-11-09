@@ -121,49 +121,6 @@ fun ProfileScreen(
                     title = "Preferencias de la App",
                     subtitle = "Personaliza tu experiencia",
                     icon = Icons.Outlined.Tune
-                ) {
-                    PreferenciasContent()
-                }
-            }
-
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-            item {
-                ConfigCard(
-                    title = "Configuración de Capital",
-                    subtitle = "Define tu capital y la frecuencia",
-                    icon = Icons.Outlined.AccountBalanceWallet
-                ) {
-                    // Pásale la función 'saveCapital' del ViewModel
-                    ConfiguracionCapitalContent(
-                        onSave = { monto, frecuencia ->
-                            viewModel.saveCapital(monto, frecuencia)
-                        }
-                    )
-                }
-            }
-            item {
-                ConfigCard(
-                    title = "Notificaciones",
-                    subtitle = "Configura alertas sobre notificaciones",
-                    icon = Icons.Outlined.Notifications
-                ) {
-                    NotificacionesContent()
-                }
-            }
-            item {
-                ConfigCard(
-                    title = "Privacidad y Seguridad",
-                    subtitle = "Controla tu privacidad y seguridad",
-                    icon = Icons.Outlined.Lock
-                ) {
-                    PrivacidadContent()
-                }
-            }
-            item {
-                ConfigCard(
-                    title = "Preferencias de la App",
-                    subtitle = "Personaliza tu experiencia",
-                    icon = Icons.Outlined.Tune
 
                 ) {
                     PreferenciasContent()
