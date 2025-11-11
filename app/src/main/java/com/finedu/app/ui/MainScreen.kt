@@ -14,7 +14,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.Notifications
@@ -44,12 +43,14 @@ import androidx.navigation.compose.rememberNavController
 import com.finedu.app.auth.data.TransactionItem
 import com.finedu.app.navigation.AppRutas
 import com.finedu.app.ui.dashboard.MainDashboardState
-import com.finedu.app.ui.dashboard.MainDashboardViewModel // Importa el ViewModel
+import com.finedu.app.ui.dashboard.MainDashboardViewModel
 import com.finedu.app.ui.dictation.VoiceDictationViewModel
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Locale
 import androidx.compose.runtime.State
+import androidx.compose.ui.text.style.TextAlign
+import com.finedu.app.ui.theme.SetStatusBarIcons
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -68,6 +69,7 @@ fun MainScreen(mainNavController: NavController, onLogoutClick: () -> Unit) {
     val viewModel: MainDashboardViewModel = hiltViewModel()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    SetStatusBarIcons(useDarkIcons = false)
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
@@ -121,6 +123,22 @@ fun MainScreen(mainNavController: NavController, onLogoutClick: () -> Unit) {
                         backStackEntry?.savedStateHandle?.set("show_success_snackbar", null)
                     }
                 }
+                LaunchedEffect(state.error) {
+                    // 1. Captura el error en una variable local
+                    val errorMessage = state.error
+
+                    if (errorMessage != null) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar(
+                                message = errorMessage, // <-- 2. ¡Usa la variable local!
+                                duration = SnackbarDuration.Long,
+                                withDismissAction = true
+                            )
+                        }
+                        // Limpia el error para que el banner no se muestre de nuevo
+                        viewModel.clearError()
+                    }
+                }
 
                 HomeScreenDashboard(
                     onAddTransactionClick = {
@@ -158,6 +176,7 @@ fun MainTopBar(
             .fillMaxWidth()
             .height(149.dp)
             .background(Color.Black)
+            .statusBarsPadding()
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -220,7 +239,7 @@ fun HomeScreenDashboard(
 
         item {
             SaludFinancieraCard(
-                ingresos = state.totalIngresos.toCurrencyString(),
+                ingresos = state.capitalAmount.toCurrencyString(),
                 egresos = state.totalEgresos.toCurrencyString()
             )
         }
@@ -263,7 +282,7 @@ fun SaludFinancieraCard(ingresos: String, egresos: String) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text("Tu Salud Financiera", style = MaterialTheme.typography.titleMedium)
+            Text("Tu Salud Financiera", style = MaterialTheme.typography.titleLarge)
             Spacer(modifier = Modifier.height(16.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -277,12 +296,12 @@ fun SaludFinancieraCard(ingresos: String, egresos: String) {
                 )
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Ingresos", fontSize = 14.sp, color = Color.Gray)
-                    Text(ingresos, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text("Ingresos", fontSize = 14.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text(ingresos, fontSize = 16.sp, fontWeight = FontWeight.Bold, color= Color(0xFF4CAF50))
                 }
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Egresos", fontSize = 14.sp, color = Color.Gray)
-                    Text(egresos, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.Red)
+                    Text("Egresos", fontSize = 14.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text(egresos, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFFB81313))
                 }
             }
         }
@@ -314,7 +333,7 @@ fun AddTransactionCard(onClick: () -> Unit) {
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun TransactionItemRow(tx: TransactionItem) {
-    val amountColor = if (tx.type == "expense") Color.Red else Color(0xFF4CAF50)
+    val amountColor = if (tx.type == "expense") Color(0xFFB81313) else Color(0xFF4CAF50)
     val amountPrefix = if (tx.type == "expense") "-" else "+"
 
     Card(
@@ -339,7 +358,6 @@ fun TransactionItemRow(tx: TransactionItem) {
             )
             Spacer(modifier = Modifier.width(16.dp))
 
-            // --- COLUMNA MODIFICADA ---
             Column(modifier = Modifier.weight(1f)) {
                 // 1. Categoría
                 Text(tx.category, fontWeight = FontWeight.SemiBold)
@@ -386,47 +404,3 @@ fun String.toFriendlyDateString(): String {
         this.take(10)
     }
 }
-
-
-
-//@Composable
-//fun MetasCard() {
-//    Card(
-//        modifier = Modifier.fillMaxWidth(),
-//        shape = RoundedCornerShape(20.dp),
-//        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-//    ) {
-//        Column(modifier = Modifier.padding(20.dp)) {
-//            Text("Metas", style = MaterialTheme.typography.titleMedium)
-//            Spacer(modifier = Modifier.height(16.dp))
-//            MetaItem(titulo = "Adquirir Automóvil", progreso = 0.85f)
-//            Spacer(modifier = Modifier.height(16.dp))
-//            MetaItem(titulo = "Adquirir Automóvil", progreso = 0.65f)
-//        }
-//    }
-//}
-
-//@Composable
-//fun MetaItem(titulo: String, progreso: Float) {
-//    Row(verticalAlignment = Alignment.CenterVertically) {
-//        Image(
-//            imageVector = Icons.Default.DirectionsCar,
-//            contentDescription = titulo,
-//            modifier = Modifier
-//                .size(40.dp)
-//                .clip(CircleShape)
-//                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-//                .padding(8.dp)
-//        )
-//        Spacer(modifier = Modifier.width(16.dp))
-//        Column(modifier = Modifier.weight(1f)) {
-//            Text(titulo, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-//            LinearProgressIndicator(
-//                progress = progreso,
-//                modifier = Modifier.fillMaxWidth().clip(CircleShape),
-//                trackColor = MaterialTheme.colorScheme.surfaceVariant
-//            )
-//        }
-//        Text("${(progreso * 100).toInt()}%", fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 16.dp))
-//    }
-//}

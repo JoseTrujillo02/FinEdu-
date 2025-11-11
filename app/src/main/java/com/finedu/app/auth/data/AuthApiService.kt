@@ -28,4 +28,10 @@ interface AuthApiService {
         @Header("Authorization") token: String,
         @Body request: CapitalSettingsRequest
     ): Response<Unit>
+
+    // --- ¡AQUÍ ESTÁ LA NUEVA FUNCIÓN GET! ---
+    @GET("api/settings/capital") // <-- 3. Usa @GET en la misma URL
+    suspend fun getCapitalSettings(
+        @Header("Authorization") token: String // <-- 4. Solo necesita el token
+    ): Response<CapitalSettingsRequest>
 }

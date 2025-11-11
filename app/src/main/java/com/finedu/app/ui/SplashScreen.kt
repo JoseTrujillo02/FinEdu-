@@ -1,5 +1,3 @@
-// Asume que este archivo es: com.finedu.app.ui.SplashScreen.kt
-
 package com.finedu.app.ui
 
 import androidx.compose.animation.core.Animatable
@@ -28,36 +26,26 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun SplashScreen(navController: NavController, destinationRoute: String) {
-    // Definición de colores
     val FineduGreen = Color(0xFF66BB6A)
     val FineduWhite = Color.White
 
-    // Animatable para el tamaño de la esfera
     val scaleAnimatable = remember { Animatable(0f) }
-    // Animatable para la opacidad del logo
     val logoAlphaAnimatable = remember { Animatable(1f) }
 
-    // Orquestación de la animación
     LaunchedEffect(key1 = true) {
-        // Fase 1: Mostrar el logo por un momento
         delay(1000L)
 
-        // Fase 2: Esfera crece (0f a 1f) y logo se desvanece
         launch {
             logoAlphaAnimatable.animateTo(0f, animationSpec = tween(500))
         }
         scaleAnimatable.animateTo(1f, animationSpec = tween(700))
         delay(500L)
 
-        // Fase 3: Esfera se expande para llenar la pantalla
         scaleAnimatable.animateTo(50f, animationSpec = tween(800))
 
-        delay(800L) // Mantener la pantalla verde
+        delay(800L)
 
-        // Navegación inmediata a la pantalla de Autenticación
         navController.navigate(destinationRoute) {
-            // Esto borra la pantalla Splash del historial.
-            // Es la forma correcta de evitar que el usuario "vuelva" al Splash.
             popUpTo(navController.graph.startDestinationId) {
                 inclusive = true
             }
@@ -70,7 +58,6 @@ fun SplashScreen(navController: NavController, destinationRoute: String) {
             .background(FineduWhite),
         contentAlignment = Alignment.Center
     ) {
-        // Esfera Verde
         Box(
             modifier = Modifier
                 .size(200.dp)
@@ -81,9 +68,9 @@ fun SplashScreen(navController: NavController, destinationRoute: String) {
         // Logo "Finedu"
         Text(
            "Finedu",
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.headlineLarge,
             fontSize = 48.sp,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.SemiBold,
             color = Color.Black,
             letterSpacing =  -2.sp,
             modifier = Modifier

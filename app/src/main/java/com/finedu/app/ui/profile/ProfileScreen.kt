@@ -1,6 +1,6 @@
 package com.finedu.app.ui.profile
 
-
+import com.finedu.app.R
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
@@ -49,7 +49,6 @@ fun ProfileScreen(
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    // --- 6. ESCUCHA LOS EVENTOS DE ÉXITO/ERROR ---
     LaunchedEffect(key1 = true) {
         viewModel.uiEvent.collect { event ->
             when (event) {
@@ -72,7 +71,7 @@ fun ProfileScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues) // <-- 8. Usa el padding del Scaffold
+                .padding(paddingValues)
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
         ) {
 
@@ -116,17 +115,6 @@ fun ProfileScreen(
                     PrivacidadContent()
                 }
             }
-            item {
-                ConfigCard(
-                    title = "Preferencias de la App",
-                    subtitle = "Personaliza tu experiencia",
-                    icon = Icons.Outlined.Tune
-
-                ) {
-                    PreferenciasContent()
-                }
-            }
-
             item { Spacer(modifier = Modifier.height(16.dp)) }
             item {
                 InfoLink(
@@ -187,15 +175,14 @@ fun ProfileHeader(name: String, email: String) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(240.dp) // Altura de la cabecera
+            .height(240.dp)
     ) {
-        // Fondo de banner (Debes añadir esta imagen a res/drawable)
+
         Image(
-            // painter = painterResource(id = R.drawable.profile_banner),
-            imageVector = Icons.Default.Adb, // Icono temporal
+            painter = painterResource(id = R.drawable.fondo_portada),
             contentDescription = "Banner de perfil",
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.height(150.dp)
         )
 
         // Contenido sobre el banner
@@ -204,22 +191,27 @@ fun ProfileHeader(name: String, email: String) {
                 .fillMaxSize()
                 .padding(16.dp),
             verticalArrangement = Arrangement.Bottom,
-            horizontalAlignment = Alignment.Start
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Avatar (Debes añadir esta imagen a res/drawable)
             Image(
-                // painter = painterResource(id = R.drawable.avatar_cristian),
-                imageVector = Icons.Default.Person, // Avatar temporal
+                painter = painterResource(id = R.drawable.profile_pic),
                 contentDescription = "Avatar",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(80.dp)
+                    .size(100.dp)
                     .clip(CircleShape)
-                    .background(Color.Gray)
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-            Text(text = email, color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
+            Text(text = name,
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                fontSize = 30.sp
+            )
+            Text(text = email,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontSize = 15.sp)
         }
 
 
@@ -230,7 +222,6 @@ fun ConfigCard(
     title: String,
     subtitle: String,
     icon: ImageVector,
-    // ¡NUEVO! Acepta un Composable como contenido expandido
     expandedContent: @Composable ColumnScope.() -> Unit
 ) {
     // 1. Estado para saber si la tarjeta está expandida
@@ -271,8 +262,6 @@ fun ConfigCard(
                 )
             }
 
-            // 6. ¡El contenido expandido!
-            // Se muestra/oculta con una animación
             AnimatedVisibility(visible = isExpanded) {
                 Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                     Divider(modifier = Modifier.padding(bottom = 8.dp))
@@ -300,7 +289,7 @@ fun InfoLink(title: String, icon: ImageVector, onClick: () -> Unit) {
 }
 
 @Composable
-fun ActionLink(title: String, icon: ImageVector, color: Color = Color.Red, onClick: () -> Unit) {
+fun ActionLink(title: String, icon: ImageVector, color: Color = MaterialTheme.colorScheme.error, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()

@@ -17,8 +17,10 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 
 import androidx.core.content.ContextCompat
 
@@ -39,7 +41,7 @@ import androidx.compose.ui.Modifier
 // Imports de Navegación (¡el importante!)
 
 import com.finedu.app.navigation.AppNavegacion
-
+import com.finedu.app.ui.theme.AppTheme
 
 
 // Imports de Firebase
@@ -61,109 +63,54 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     private val requestPermissions = registerForActivityResult(
-
         ActivityResultContracts.RequestMultiplePermissions()
-
     ) { results ->
-
         Log.d("Perms", "Resultados permisos: $results")
-
     }
 
-
-
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
-
         super.onCreate(savedInstanceState)
-
-
-
-// Tu inicialización de Firebase (se queda igual)
-
+        enableEdgeToEdge()
         FirebaseApp.initializeApp(this)
-
-
-
         FirebaseMessaging.getInstance().token
-
             .addOnSuccessListener { token ->
-
                 Log.d("FCM", "📩 Token FCM: $token")
-
             }
-
             .addOnFailureListener { e ->
-
                 Log.e("FCM", "❌ Error al obtener token FCM", e)
-
             }
-
-
-
-// Tu lógica de permisos (se queda igual)
-
         ensureRuntimePermissions()
-
-
-
-// El setContent ahora es mucho más simple
-
         setContent {
-
-            MaterialTheme {
-
+            AppTheme {
                 Surface(
-
                     modifier = Modifier.fillMaxSize(),
-
                     color = MaterialTheme.colorScheme.background
-
                 ) {
-
                     AppNavegacion()
-
                 }
-
             }
-
         }
-
     }
-
-
 
     private fun ensureRuntimePermissions() {
-
         val toRequest = mutableListOf<String>()
 
-
-
         toRequest += Manifest.permission.RECORD_AUDIO
-
-
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
 
             toRequest += Manifest.permission.POST_NOTIFICATIONS
-
         }
 
 
 
         val needed = toRequest.filter {
-
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-
         }
-
-
 
         if (needed.isNotEmpty()) {
-
             requestPermissions.launch(needed.toTypedArray())
-
         }
-
     }
 
 }
