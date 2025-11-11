@@ -71,6 +71,11 @@ fun MainScreen(mainNavController: NavController, onLogoutClick: () -> Unit) {
     val scope = rememberCoroutineScope()
     SetStatusBarIcons(useDarkIcons = false)
 
+    // Cargar datos automáticamente al entrar
+    LaunchedEffect(Unit) {
+        viewModel.loadDashboardDataForThisMonth()
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
@@ -124,18 +129,16 @@ fun MainScreen(mainNavController: NavController, onLogoutClick: () -> Unit) {
                     }
                 }
                 LaunchedEffect(state.error) {
-                    // 1. Captura el error en una variable local
                     val errorMessage = state.error
 
                     if (errorMessage != null) {
                         scope.launch {
                             snackbarHostState.showSnackbar(
-                                message = errorMessage, // <-- 2. ¡Usa la variable local!
+                                message = errorMessage,
                                 duration = SnackbarDuration.Long,
                                 withDismissAction = true
                             )
                         }
-                        // Limpia el error para que el banner no se muestre de nuevo
                         viewModel.clearError()
                     }
                 }
@@ -191,7 +194,6 @@ fun MainTopBar(
             modifier = Modifier.weight(1f)
         )
 
-        // --- BOTÓN DE REFRESCAR AÑADIDO ---
         IconButton(onClick = onRefreshClick) {
             Icon(
                 imageVector = Icons.Default.Refresh,
@@ -228,50 +230,75 @@ fun HomeScreenDashboard(
     onAddTransactionClick: () -> Unit,
     state: MainDashboardState
 ) {
-    LazyColumn(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = 16.dp)
     ) {
-        item { Spacer(modifier = Modifier.height(8.dp)) }
+        Spacer(modifier = Modifier.height(8.dp))
 
-        item {
-            SaludFinancieraCard(
-                ingresos = state.capitalAmount.toCurrencyString(),
-                egresos = state.totalEgresos.toCurrencyString()
+        SaludFinancieraCard(
+            ingresos = state.capitalAmount.toCurrencyString(),
+            egresos = state.totalEgresos.toCurrencyString()
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        AddTransactionCard(onClick = onAddTransactionClick)
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "Transacciones Recientes",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)
+        )
+
+        // Panel de transacciones con scroll independiente
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f), // Ocupa el espacio restante
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
             )
-        }
-
-        item { AddTransactionCard(onClick = onAddTransactionClick) }
-
-        //item { MetasCard() }
-
-        item {
-            Text(
-                text = "Transacciones Recientes",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
-            )
-        }
-
-        // --- Lógica de Carga Simplificada ---
-        if (state.isLoading) {
-            item {
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        ) {
+            if (state.isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
                     CircularProgressIndicator()
                 }
-            }
-        } else {
-            items(state.transactions) { transaction ->
-                TransactionItemRow(tx = transaction)
+            } else if (state.transactions.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No hay transacciones",
+                        color = Color.Gray,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(state.transactions) { transaction ->
+                        TransactionItemRow(tx = transaction)
+                    }
+                }
             }
         }
 
-        item { Spacer(modifier = Modifier.height(16.dp)) }
+        Spacer(modifier = Modifier.height(16.dp))
     }
-    // --- CONTENEDOR DE PULL-TO-REFRESH ELIMINADO ---
 }
 
 @Composable
@@ -337,18 +364,16 @@ fun TransactionItemRow(tx: TransactionItem) {
     val amountPrefix = if (tx.type == "expense") "-" else "+"
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = Icons.Default.ShoppingCart, // Icono temporal
+                imageVector = Icons.Default.ShoppingCart,
                 contentDescription = tx.category,
                 modifier = Modifier
                     .size(40.dp)
@@ -359,7 +384,6 @@ fun TransactionItemRow(tx: TransactionItem) {
             Spacer(modifier = Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                // 1. Categoría
                 Text(tx.category, fontWeight = FontWeight.SemiBold)
 
                 Text(
@@ -384,6 +408,7 @@ fun TransactionItemRow(tx: TransactionItem) {
         }
     }
 }
+
 fun Double.toCurrencyString(): String {
     val format = NumberFormat.getCurrencyInstance(Locale("es", "MX"))
     return format.format(this)
@@ -392,15 +417,14 @@ fun Double.toCurrencyString(): String {
 @RequiresApi(Build.VERSION_CODES.O)
 fun String.toFriendlyDateString(): String {
     return try {
-        val instant = Instant.parse(this) // Lee el string UTC
+        val instant = Instant.parse(this)
         val formatter = DateTimeFormatter.ofPattern(
-            "d MMM, yyyy", // Formato: "9 Nov, 2025"
-            Locale("es", "MX") // Usa tu Locale
-        ).withZone(ZoneId.systemDefault()) // Convierte a la zona horaria del usuario
+            "d MMM, yyyy",
+            Locale("es", "MX")
+        ).withZone(ZoneId.systemDefault())
 
         formatter.format(instant)
     } catch (e: Exception) {
-        // Si la fecha está mal formateada, devuelve los primeros 10 caracteres
         this.take(10)
     }
 }

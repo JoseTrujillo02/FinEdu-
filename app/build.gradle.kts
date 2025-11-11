@@ -61,7 +61,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
-
+    implementation("androidx.compose.runtime:runtime-livedata:1.9.4")
     // Compose BOM
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
@@ -69,29 +69,30 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.play.services.games)
+    implementation(libs.androidx.compose.ui.text.google.fonts)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
     // Retrofit
-        implementation("com.squareup.retrofit2:retrofit:2.9.0")
-        implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 
-        // OkHttp
-        implementation("com.squareup.okhttp3:okhttp:4.12.0")
-        implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+    // OkHttp
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
-        // Gson
-        implementation("com.google.code.gson:gson:2.10.1")
+    // Gson
+    implementation("com.google.code.gson:gson:2.10.1")
 
-        // Las demás dependencias que ya tienes...
-            // Compose
-        implementation("androidx.compose.material3:material3:1.2.0")
-        implementation("androidx.compose.material:material-icons-extended:1.6.0")
+    // Las demás dependencias que ya tienes...
+    // Compose
+    implementation("androidx.compose.material3:material3:1.2.0")
+    implementation("androidx.compose.material:material-icons-extended:1.6.0")
 
-        // ViewModel
-        implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
-        implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
-    
+    // ViewModel
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
+    implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
+
     // Test UI
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
