@@ -47,15 +47,12 @@ fun LoginScreen(
             .fillMaxSize()
             .background(Color(0xFFE8E8E8))
     ) {
-        // Fondo con imagen de círculos
         Image(
             painter = painterResource(id = R.drawable.login_background),
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop
         )
-
-        // Contenido centrado
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -63,7 +60,6 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Notificación de error/éxito
             AnimatedVisibility(
                 visible = state.error != null || state.isSuccess,
                 enter = slideInVertically(
@@ -86,8 +82,6 @@ fun LoginScreen(
                     onDismiss = onDismissError
                 )
             }
-
-            // Card con efecto glassmorphism
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -106,17 +100,15 @@ fun LoginScreen(
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Título
                     Text(
                         text = "Iniciar Sesion",
+                        style = MaterialTheme.typography.headlineMedium,
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color.White,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(bottom = 32.dp)
                     )
-
-                    // Campo Email
                     OutlinedTextField(
                         value = email,
                         onValueChange = { email = it },
@@ -151,8 +143,6 @@ fun LoginScreen(
                         ),
                         enabled = !state.isLoading
                     )
-
-                    // Campo Contraseña
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it },
@@ -205,8 +195,6 @@ fun LoginScreen(
                         ),
                         enabled = !state.isLoading
                     )
-
-                    // Botón Iniciar Sesión
                     Button(
                         onClick = { onLoginClick(email, password) },
                         modifier = Modifier
@@ -236,7 +224,6 @@ fun LoginScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Texto de registro
                     Row(
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
@@ -277,7 +264,6 @@ fun NotificationCard(
         Color(0xFF4CAF50).copy(alpha = 0.95f)
     }
 
-    // Auto-dismiss después de 4 segundos
     LaunchedEffect(message) {
         delay(4000)
         onDismiss()
