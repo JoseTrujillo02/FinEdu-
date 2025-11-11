@@ -77,13 +77,15 @@ fun VoiceDictationScreen(
     val startSpeechRecognition = {
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es")
-            putExtra(RecognizerIntent.EXTRA_PROMPT, "¡Habla ahora! (Se enviará tras 5s de silencio)")
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-MX")
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "es-MX")
+            putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, true)
+            putExtra(RecognizerIntent.EXTRA_SUPPORTED_LANGUAGES, arrayListOf("es-MX", "es-ES", "es"))
 
-            // --- ¡LA LÍNEA MÁGICA! ---
-            // Le dice al dictado que espere 5 segundos de silencio antes de detenerse
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 5000L) // 5000ms = 5s
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "Habla ahora…")
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 5000L)
         }
+
 
         if (intent.resolveActivity(context.packageManager) != null) {
             speechRecognizerLauncher.launch(intent)
