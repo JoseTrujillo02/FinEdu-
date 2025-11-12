@@ -3,6 +3,7 @@ package com.finedu.app.auth.data
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.HTTP
 import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.PUT
@@ -29,9 +30,14 @@ interface AuthApiService {
         @Body request: CapitalSettingsRequest
     ): Response<Unit>
 
-    // --- ¡AQUÍ ESTÁ LA NUEVA FUNCIÓN GET! ---
     @GET("api/settings/capital") // <-- 3. Usa @GET en la misma URL
     suspend fun getCapitalSettings(
         @Header("Authorization") token: String // <-- 4. Solo necesita el token
     ): Response<CapitalSettingsRequest>
+
+    @HTTP(method = "DELETE", path = "api/account/me", hasBody = true)
+    suspend fun deleteAccount(
+        @Header("Authorization") token: String,
+        @Body request: DeleteAccountRequest
+    ): Response<Unit>
 }

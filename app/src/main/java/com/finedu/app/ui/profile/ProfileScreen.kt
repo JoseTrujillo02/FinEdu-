@@ -37,33 +37,50 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.finedu.app.navigation.AppRutas
+import com.finedu.app.ui.dashboard.MainDashboardViewModel
 import com.finedu.app.ui.dictation.UiEvent
+import com.finedu.app.ui.theme.SetStatusBarIcons
 import kotlinx.coroutines.launch
 
 @Composable
 fun ProfileScreen(
     navController: NavController,
     onLogoutClick: () -> Unit,
-    viewModel: ProfileViewModel = hiltViewModel()
+    viewModel: ProfileViewModel = hiltViewModel(),
+    dashboardViewModel: MainDashboardViewModel = hiltViewModel(
+        navController.getBackStackEntry(AppRutas.HOME_SCREEN)
+    )
 ) {
+    val dashboardState by dashboardViewModel.state.collectAsState()
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    var showConfirmDialog by remember { mutableStateOf(false) }
+
     LaunchedEffect(key1 = true) {
         viewModel.uiEvent.collect { event ->
             when (event) {
-                is UiEvent.Success -> {
+                is ProfileUiEvent.ShowSnackbar -> {
                     scope.launch {
                         snackbarHostState.showSnackbar(event.message)
                     }
                 }
-                is UiEvent.Error -> {
-                    scope.launch {
-                        snackbarHostState.showSnackbar(event.message, withDismissAction = true)
-                    }
+                is ProfileUiEvent.NavigateToLogin -> {
+                    onLogoutClick()
                 }
             }
         }
+    }
+
+    if (showConfirmDialog) {
+        ConfirmDeleteDialog(
+            onDismiss = { showConfirmDialog = false },
+            onConfirm = {
+                showConfirmDialog = false
+                viewModel.deleteAccount() // Llama al ViewModel
+            }
+        )
     }
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
@@ -91,6 +108,7 @@ fun ProfileScreen(
                     icon = Icons.Outlined.AccountBalanceWallet
                 ) {
                     ConfiguracionCapitalContent(
+                        capitalInicial = dashboardState.capitalAmount,
                         onSave = { monto, frecuencia ->
                             viewModel.saveCapital(monto, frecuencia)
                         }
@@ -151,9 +169,10 @@ fun ProfileScreen(
                     title = "Eliminar Cuenta",
                     icon = Icons.Outlined.DeleteForever,
                     color = MaterialTheme.colorScheme.error,
-                    onClick = { /* TODO: Mostrar diálogo de confirmación */ }
+                    onClick = {
+                        showConfirmDialog = true
+                    }
                 )
-
             }
 
             item {
@@ -305,10 +324,12 @@ fun ActionLink(title: String, icon: ImageVector, color: Color = MaterialTheme.co
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConfiguracionCapitalContent(
+    capitalInicial: Double,
     onSave: (String, String) -> Unit
-) {
-    var monto by remember { mutableStateOf("$ 0.00") }
-    val opcionesFrecuencia = listOf("Semanal", "Quincenal", "Mensual")
+)
+ {
+    var monto by remember { mutableStateOf(capitalInicial.toString()) }
+     val opcionesFrecuencia = listOf("Semanal", "Quincenal", "Mensual")
     var isFrecuenciaExpanded by remember { mutableStateOf(false) }
     var frecuencia by remember { mutableStateOf(opcionesFrecuencia[2]) }
 
@@ -441,4 +462,31 @@ fun ConfigRowWithSwitch(
             onCheckedChange = onCheckedChange
         )
     }
+}
+@Composable
+fun ConfirmDeleteDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Default.Warning, contentDescription = "Advertencia") },
+        title = { Text("Eliminar Cuenta") },
+        text = { Text("¿Estás seguro? Esta acción es permanente y no se puede deshacer. Todos tus datos serán eliminados.") },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text("Sí, Eliminar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
 }

@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 import javax.inject.Inject
 
 data class VoiceDictationState(
@@ -38,6 +39,12 @@ class VoiceDictationViewModel @Inject constructor(
 
     fun sendMessage(message: String) {
         viewModelScope.launch {
+            // Validación de mensaje vacío
+            if (message.trim().isEmpty()) {
+                _uiEvent.send(UiEvent.Error("Por favor, ingresa un mensaje"))
+                return@launch
+            }
+
             // Pone la UI en modo "Cargando"
             _state.update { it.copy(isLoading = true) }
 
@@ -50,21 +57,63 @@ class VoiceDictationViewModel @Inject constructor(
 
             val token = "Bearer ${session.idToken}"
             val request = DictationRequest(mensaje = message)
+
             try {
                 val response = aiService.sendDictation(token, request)
 
-                if (response.isSuccessful) {
-                    _state.update { it.copy(isLoading = false) }
-                    _uiEvent.send(UiEvent.Success("¡Enviado con éxito!"))
-                } else {
-                    _state.update { it.copy(isLoading = false) }
-                    _uiEvent.send(UiEvent.Error("Error: ${response.code()}"))
+                _state.update { it.copy(isLoading = false) }
+
+                when {
+                    response.isSuccessful -> {
+                        _uiEvent.send(UiEvent.Success("¡Transacción registrada exitosamente!"))
+                    }
+                    response.code() == 400 -> {
+                        // Intenta extraer el mensaje de error del backend
+                        val errorBody = response.errorBody()?.string()
+                        val errorMessage = try {
+                            val jsonError = JSONObject(errorBody ?: "{}")
+                            jsonError.optString("detail", "El mensaje contiene contenido inapropiado")
+                        } catch (e: Exception) {
+                            "El mensaje contiene lenguaje inapropiado o no permitido"
+                        }
+                        _uiEvent.send(UiEvent.Error(errorMessage))
+                    }
+                    response.code() == 401 -> {
+                        _uiEvent.send(UiEvent.Error("Sesión expirada. Por favor, inicia sesión nuevamente"))
+                    }
+                    response.code() == 422 -> {
+                        _uiEvent.send(UiEvent.Error("El formato del mensaje no es válido"))
+                    }
+                    response.code() == 500 -> {
+                        _uiEvent.send(UiEvent.Error("Error en el servidor. Intenta nuevamente más tarde"))
+                    }
+                    response.code() in 502..504 -> {
+                        _uiEvent.send(UiEvent.Error("Servicio no disponible temporalmente"))
+                    }
+                    else -> {
+                        val errorBody = response.errorBody()?.string()
+                        val errorMessage = try {
+                            val jsonError = JSONObject(errorBody ?: "{}")
+                            jsonError.optString("detail", "Error desconocido (${response.code()})")
+                        } catch (e: Exception) {
+                            "Error al procesar la transacción (código: ${response.code()})"
+                        }
+                        _uiEvent.send(UiEvent.Error(errorMessage))
+                    }
                 }
+            } catch (e: java.net.UnknownHostException) {
+                _state.update { it.copy(isLoading = false) }
+                _uiEvent.send(UiEvent.Error("Sin conexión a internet. Verifica tu red"))
+            } catch (e: java.net.SocketTimeoutException) {
+                _state.update { it.copy(isLoading = false) }
+                _uiEvent.send(UiEvent.Error("Tiempo de espera agotado. Intenta nuevamente"))
+            } catch (e: javax.net.ssl.SSLException) {
+                _state.update { it.copy(isLoading = false) }
+                _uiEvent.send(UiEvent.Error("Error de seguridad en la conexión"))
             } catch (e: Exception) {
                 _state.update { it.copy(isLoading = false) }
-                _uiEvent.send(UiEvent.Error(e.message ?: "Error de red"))
+                _uiEvent.send(UiEvent.Error(e.message ?: "Error de conexión desconocido"))
             }
         }
     }
-
 }

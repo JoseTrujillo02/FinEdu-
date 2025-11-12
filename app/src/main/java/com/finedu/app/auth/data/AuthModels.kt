@@ -67,3 +67,6 @@ data class CapitalSettingsRequest(
     @SerializedName("amount") val amount: Double,
     @SerializedName("periodicity") val periodicity: String
 )
+data class DeleteAccountRequest(
+    @SerializedName("confirm") val confirm: String
+)
