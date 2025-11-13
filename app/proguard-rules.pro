@@ -1,21 +1,39 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# --- Reglas para Retrofit y OkHttp (Red) ---
+# (Evita que se eliminen clases que Retrofit usa internamente)
+-keep class retrofit2.** { *; }
+-keep interface retrofit2.** { *; }
+-dontwarn retrofit2.Platform$Java8
+-keep class com.squareup.okhttp3.** { *; }
+-keep interface com.squareup.okhttp3.** { *; }
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Regla para tus modelos de Auth (LoginResponse, User, Tokens, etc.)
+-keep class com.finedu.app.auth.data.** { *; }
+-keep interface com.finedu.app.auth.data.** { *; }
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Regla para tus modelos de App (UserSessionData)
+-keep class com.finedu.app.data.** { *; }
+-keep interface com.finedu.app.data.** { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Regla para tus modelos de IA (FinancialAiService)
+-keep class com.finedu.app.ai.data.** { *; }
+-keep interface com.finedu.app.ai.data.** { *; }
+
+# Regla para las anotaciones de GSON (SerializedName)
+-keepattributes Annotation
+-keep class com.google.gson.annotations.** { *; }
+
+# --- Reglas para Retrofit y OkHttp (Red) ---
+-keep class retrofit2.** { *; }
+-keep interface retrofit2.** { *; }
+-dontwarn retrofit2.Platform$Java8
+-keep class com.squareup.okhttp3.** { *; }
+-keep interface com.squareup.okhttp3.** { *; }
+
+# --- ¡Reglas para tus Modelos de GSON! ---
+# Esto le dice a ProGuard que no toque NINGUNA clase en tu paquete 'data'.
+-keep class com.finedu.app.auth.data.** { *; }
+-keep interface com.finedu.app.auth.data.** { *; }
+
+# Regla para las anotaciones de GSON (SerializedName)
+-keepattributes Annotation
+-keep class com.google.gson.annotations.**{*;}
