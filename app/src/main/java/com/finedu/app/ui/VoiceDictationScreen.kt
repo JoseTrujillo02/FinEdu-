@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -208,7 +209,7 @@ fun VoiceDictationScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Card principal con diseño limpio
+            // Card principal con diseño limpio y botón integrado
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -228,13 +229,8 @@ fun VoiceDictationScreen(
                     ) {
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Icono del micrófono animado
-                        MicrophoneAnimation(isRecording = state.isLoading)
-
-                        Spacer(modifier = Modifier.height(32.dp))
-
                         Text(
-                            text = if (state.isLoading) "Procesando tu solicitud..." else "Toca el botón y dicta tu transacción",
+                            text = if (state.isLoading) "Procesando tu solicitud..." else "Toca el micrófono para dictar",
                             style = MaterialTheme.typography.titleMedium,
                             color = DarkGray,
                             fontWeight = FontWeight.Medium,
@@ -243,11 +239,20 @@ fun VoiceDictationScreen(
 
                         Spacer(modifier = Modifier.height(24.dp))
 
+                        // Botón del micrófono animado (ahora clickeable)
+                        MicrophoneButton(
+                            isRecording = state.isLoading,
+                            onClick = startSpeechRecognition,
+                            enabled = !state.isLoading
+                        )
+
+                        Spacer(modifier = Modifier.height(32.dp))
+
                         // Campo de texto con diseño minimalista
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(180.dp)
+                                .weight(1f)
                                 .clip(RoundedCornerShape(16.dp))
                                 .background(Color(0xFFF7F9FC))
                                 .padding(20.dp)
@@ -270,51 +275,6 @@ fun VoiceDictationScreen(
                             }
                         }
                     }
-
-                    // Botón de dictar con verde como acento elegante
-                    Button(
-                        onClick = startSpeechRecognition,
-                        enabled = !state.isLoading,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(60.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = FineduGreen,
-                            contentColor = Color.White,
-                            disabledContainerColor = LightGray
-                        ),
-                        elevation = ButtonDefaults.buttonElevation(
-                            defaultElevation = 0.dp,
-                            pressedElevation = 2.dp
-                        )
-                    ) {
-                        if (state.isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = Color.White,
-                                strokeWidth = 2.5.dp
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                "Procesando...",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        } else {
-                            Icon(
-                                Icons.Filled.Mic,
-                                contentDescription = "Micrófono",
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                "Comenzar Dictado",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
                 }
             }
         }
@@ -328,63 +288,228 @@ fun VoiceDictationScreen(
 }
 
 @Composable
-fun MicrophoneAnimation(isRecording: Boolean) {
+fun MicrophoneButton(
+    isRecording: Boolean,
+    onClick: () -> Unit,
+    enabled: Boolean
+) {
     val infiniteTransition = rememberInfiniteTransition(label = "mic_animation")
 
-    val scale by infiniteTransition.animateFloat(
+    // Animaciones para los anillos pulsantes
+    val scale1 by infiniteTransition.animateFloat(
         initialValue = 1f,
-        targetValue = 1.1f,
+        targetValue = 1.3f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 1500, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "mic_scale"
+        label = "ring1_scale"
     )
 
-    val pulseAlpha by infiniteTransition.animateFloat(
+    val scale2 by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1500, delayMillis = 200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "ring2_scale"
+    )
+
+    val scale3 by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1500, delayMillis = 400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "ring3_scale"
+    )
+
+    val pulseAlpha1 by infiniteTransition.animateFloat(
+        initialValue = 0.25f,
+        targetValue = 0.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse_alpha1"
+    )
+
+    val pulseAlpha2 by infiniteTransition.animateFloat(
         initialValue = 0.2f,
         targetValue = 0.05f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 1500, delayMillis = 200, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "pulse_alpha"
+        label = "pulse_alpha2"
+    )
+
+    val pulseAlpha3 by infiniteTransition.animateFloat(
+        initialValue = 0.15f,
+        targetValue = 0.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1500, delayMillis = 400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse_alpha3"
+    )
+
+    // Rotación sutil del ícono cuando está grabando
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 3000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "icon_rotation"
     )
 
     Box(
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
+        modifier = Modifier.size(200.dp)
     ) {
-        // Anillo exterior pulsante cuando está grabando
+        // Anillos exteriores pulsantes cuando está grabando
         if (isRecording) {
             Box(
                 modifier = Modifier
-                    .size(160.dp)
-                    .scale(scale)
+                    .size(200.dp)
+                    .scale(scale1)
                     .background(
-                        color = FineduGreen.copy(alpha = pulseAlpha),
+                        color = FineduGreen.copy(alpha = pulseAlpha1),
+                        shape = CircleShape
+                    )
+            )
+            Box(
+                modifier = Modifier
+                    .size(180.dp)
+                    .scale(scale2)
+                    .background(
+                        color = FineduGreen.copy(alpha = pulseAlpha2),
+                        shape = CircleShape
+                    )
+            )
+            Box(
+                modifier = Modifier
+                    .size(160.dp)
+                    .scale(scale3)
+                    .background(
+                        color = FineduGreen.copy(alpha = pulseAlpha3),
                         shape = CircleShape
                     )
             )
         }
 
-        // Círculo principal del micrófono con diseño limpio
-        Box(
+        // Círculo principal del micrófono con efecto de elevación
+        IconButton(
+            onClick = onClick,
+            enabled = enabled,
             modifier = Modifier
-                .size(100.dp)
-                .background(
-                    color = if (isRecording)
-                        FineduGreen.copy(alpha = 0.15f)
-                    else
-                        Color(0xFFF7F9FC),
-                    shape = CircleShape
-                ),
-            contentAlignment = Alignment.Center
+                .size(120.dp)
+                .shadow(
+                    elevation = if (isRecording) 12.dp else 8.dp,
+                    shape = CircleShape,
+                    ambientColor = if (isRecording) FineduGreen else Color.Black,
+                    spotColor = if (isRecording) FineduGreen else Color.Black
+                )
         ) {
-            Icon(
-                Icons.Filled.Mic,
-                contentDescription = "Micrófono",
-                modifier = Modifier.size(48.dp),
-                tint = if (isRecording) FineduGreen else MediumGray
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = if (isRecording) {
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    FineduGreen.copy(alpha = 0.3f),
+                                    FineduGreen.copy(alpha = 0.15f),
+                                    FineduGreen.copy(alpha = 0.1f)
+                                )
+                            )
+                        } else if (enabled) {
+                            Brush.linearGradient(
+                                colors = listOf(
+                                    FineduGreen,
+                                    FineduDarkGreen
+                                )
+                            )
+                        } else {
+                            Brush.linearGradient(
+                                colors = listOf(
+                                    LightGray,
+                                    LightGray.copy(alpha = 0.8f)
+                                )
+                            )
+                        },
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isRecording) {
+                    Box(contentAlignment = Alignment.Center) {
+                        // Indicador de carga con rotación
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .size(70.dp)
+                                .scale(scale3),
+                            color = FineduGreen,
+                            strokeWidth = 3.dp
+                        )
+
+                        // Ícono central con pulso
+                        Icon(
+                            Icons.Filled.Mic,
+                            contentDescription = "Procesando",
+                            modifier = Modifier
+                                .size(40.dp)
+                                .scale(scale3),
+                            tint = FineduGreen
+                        )
+                    }
+                } else {
+                    // Ícono del micrófono con efecto de brillo
+                    Box(contentAlignment = Alignment.Center) {
+                        // Brillo detrás del ícono
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .background(
+                                    brush = Brush.radialGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = 0.3f),
+                                            Color.Transparent
+                                        )
+                                    ),
+                                    shape = CircleShape
+                                )
+                        )
+
+                        Icon(
+                            Icons.Filled.Mic,
+                            contentDescription = "Micrófono",
+                            modifier = Modifier.size(56.dp),
+                            tint = if (enabled) Color.White else Color.White.copy(alpha = 0.5f)
+                        )
+                    }
+                }
+            }
+        }
+
+        // Pequeños indicadores visuales alrededor cuando está listo
+        if (!isRecording && enabled) {
+            Box(
+                modifier = Modifier
+                    .size(140.dp)
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                FineduGreen.copy(alpha = 0.05f)
+                            )
+                        ),
+                        shape = CircleShape
+                    )
             )
         }
     }

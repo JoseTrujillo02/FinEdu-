@@ -11,6 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -50,6 +51,15 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+// Enums para filtros
+enum class TransactionFilter {
+    ALL, INCOME, EXPENSE
+}
+
+enum class TransactionSort {
+    DATE_DESC, DATE_ASC, AMOUNT_DESC, AMOUNT_ASC, CATEGORY
+}
+
 // Colores adaptativos para tema claro y oscuro
 @Composable
 private fun getColorScheme(): AppColors {
@@ -59,7 +69,7 @@ private fun getColorScheme(): AppColors {
             primary = Color(0xFF66BB6A),
             primaryDark = Color(0xFF4CAF50),
             primaryLight = Color(0xFF81C784),
-            expense = Color(0xFFFF8A65), // Naranja suave en lugar de rojo
+            expense = Color(0xFFFF8A65),
             textPrimary = Color(0xFFE8EAED),
             textSecondary = Color(0xFFB0B8C1),
             textTertiary = Color(0xFF8A9199),
@@ -74,7 +84,7 @@ private fun getColorScheme(): AppColors {
             primary = Color(0xFF4CAF50),
             primaryDark = Color(0xFF388E3C),
             primaryLight = Color(0xFF81C784),
-            expense = Color(0xFFFF7043), // Naranja coral suave
+            expense = Color(0xFFFF7043),
             textPrimary = Color(0xFF1A2332),
             textSecondary = Color(0xFF3A4F66),
             textTertiary = Color(0xFF94A3B8),
@@ -274,6 +284,37 @@ fun HomeScreenDashboard(
     onDeleteTransaction: () -> Unit
 ) {
     var showTrends by remember { mutableStateOf(false) }
+    var currentFilter by remember { mutableStateOf(TransactionFilter.ALL) }
+    var currentSort by remember { mutableStateOf(TransactionSort.DATE_DESC) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    // Aplicar filtros, búsqueda y ordenamiento
+    val filteredAndSortedTransactions = remember(state.transactions, currentFilter, currentSort, searchQuery) {
+        var transactions = when (currentFilter) {
+            TransactionFilter.ALL -> state.transactions
+            TransactionFilter.INCOME -> state.transactions.filter { it.type == "income" }
+            TransactionFilter.EXPENSE -> state.transactions.filter { it.type == "expense" }
+        }
+
+        // Aplicar búsqueda
+        if (searchQuery.isNotBlank()) {
+            transactions = transactions.filter { tx ->
+                tx.category.contains(searchQuery, ignoreCase = true) ||
+                        tx.description?.contains(searchQuery, ignoreCase = true) == true ||
+                        tx.amount.toString().contains(searchQuery)
+            }
+        }
+
+        transactions = when (currentSort) {
+            TransactionSort.DATE_DESC -> transactions.sortedByDescending { it.date }
+            TransactionSort.DATE_ASC -> transactions.sortedBy { it.date }
+            TransactionSort.AMOUNT_DESC -> transactions.sortedByDescending { it.amount }
+            TransactionSort.AMOUNT_ASC -> transactions.sortedBy { it.amount }
+            TransactionSort.CATEGORY -> transactions.sortedBy { it.category }
+        }
+
+        transactions
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -307,7 +348,32 @@ fun HomeScreenDashboard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("Actividad Reciente", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = colors.textPrimary)
-                Text("${state.transactions.size} transacciones", style = MaterialTheme.typography.bodyMedium, color = colors.textTertiary, fontWeight = FontWeight.Medium)
+                Text("${filteredAndSortedTransactions.size} transacciones", style = MaterialTheme.typography.bodyMedium, color = colors.textTertiary, fontWeight = FontWeight.Medium)
+            }
+        }
+
+        // Filtros, búsqueda y ordenamiento
+        item {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Barra de búsqueda
+                SearchBar(
+                    colors = colors,
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    onClear = { searchQuery = "" }
+                )
+
+                // Filtros y ordenamiento
+                FilterAndSortRow(
+                    colors = colors,
+                    currentFilter = currentFilter,
+                    currentSort = currentSort,
+                    onFilterChange = { currentFilter = it },
+                    onSortChange = { currentSort = it }
+                )
             }
         }
 
@@ -322,12 +388,256 @@ fun HomeScreenDashboard(
             ) {
                 when {
                     state.isLoading -> LoadingState(colors)
-                    state.transactions.isEmpty() -> EmptyState(colors)
-                    else -> TransactionsList(colors, state.transactions, onDeleteTransaction)
+                    filteredAndSortedTransactions.isEmpty() -> EmptyState(colors, currentFilter)
+                    else -> TransactionsList(colors, filteredAndSortedTransactions, onDeleteTransaction)
                 }
             }
         }
     }
+}
+
+@Composable
+fun SearchBar(
+    colors: AppColors,
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onClear: () -> Unit
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp),
+        placeholder = {
+            Text(
+                "Buscar por categoría, descripción o monto...",
+                color = colors.textTertiary,
+                fontSize = 14.sp
+            )
+        },
+        leadingIcon = {
+            Icon(
+                Icons.Outlined.Search,
+                contentDescription = "Buscar",
+                tint = colors.textTertiary
+            )
+        },
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                IconButton(onClick = onClear) {
+                    Icon(
+                        Icons.Outlined.Close,
+                        contentDescription = "Limpiar",
+                        tint = colors.textTertiary
+                    )
+                }
+            }
+        },
+        singleLine = true,
+        shape = RoundedCornerShape(16.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = colors.surface,
+            unfocusedContainerColor = colors.surface,
+            focusedBorderColor = colors.primary.copy(alpha = 0.5f),
+            unfocusedBorderColor = colors.textTertiary.copy(alpha = 0.2f),
+            focusedTextColor = colors.textPrimary,
+            unfocusedTextColor = colors.textPrimary,
+            cursorColor = colors.primary
+        )
+    )
+}
+
+@Composable
+fun FilterAndSortRow(
+    colors: AppColors,
+    currentFilter: TransactionFilter,
+    currentSort: TransactionSort,
+    onFilterChange: (TransactionFilter) -> Unit,
+    onSortChange: (TransactionSort) -> Unit
+) {
+    var showSortMenu by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Filtros
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            item {
+                FilterChip(
+                    colors = colors,
+                    label = "Todas",
+                    icon = Icons.Outlined.List,
+                    isSelected = currentFilter == TransactionFilter.ALL,
+                    onClick = { onFilterChange(TransactionFilter.ALL) }
+                )
+            }
+            item {
+                FilterChip(
+                    colors = colors,
+                    label = "Ingresos",
+                    icon = Icons.Outlined.ArrowUpward,
+                    isSelected = currentFilter == TransactionFilter.INCOME,
+                    onClick = { onFilterChange(TransactionFilter.INCOME) },
+                    chipColor = colors.primary
+                )
+            }
+            item {
+                FilterChip(
+                    colors = colors,
+                    label = "Egresos",
+                    icon = Icons.Outlined.ArrowDownward,
+                    isSelected = currentFilter == TransactionFilter.EXPENSE,
+                    onClick = { onFilterChange(TransactionFilter.EXPENSE) },
+                    chipColor = colors.expense
+                )
+            }
+        }
+
+        // Ordenamiento
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Ordenar por:",
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.textSecondary,
+                fontWeight = FontWeight.Medium
+            )
+
+            Box {
+                OutlinedButton(
+                    onClick = { showSortMenu = true },
+                    modifier = Modifier.height(36.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.3f)),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = colors.primary.copy(alpha = 0.05f),
+                        contentColor = colors.primary
+                    )
+                ) {
+                    Text(
+                        text = when (currentSort) {
+                            TransactionSort.DATE_DESC -> "Más recientes"
+                            TransactionSort.DATE_ASC -> "Más antiguos"
+                            TransactionSort.AMOUNT_DESC -> "Mayor monto"
+                            TransactionSort.AMOUNT_ASC -> "Menor monto"
+                            TransactionSort.CATEGORY -> "Categoría"
+                        },
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        Icons.Outlined.ArrowDropDown,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = showSortMenu,
+                    onDismissRequest = { showSortMenu = false },
+                    modifier = Modifier.background(colors.surface)
+                ) {
+                    SortMenuItem(colors, "Más recientes", Icons.Outlined.ArrowDownward, currentSort == TransactionSort.DATE_DESC) {
+                        onSortChange(TransactionSort.DATE_DESC)
+                        showSortMenu = false
+                    }
+                    SortMenuItem(colors, "Más antiguos", Icons.Outlined.ArrowUpward, currentSort == TransactionSort.DATE_ASC) {
+                        onSortChange(TransactionSort.DATE_ASC)
+                        showSortMenu = false
+                    }
+                    SortMenuItem(colors, "Mayor monto", Icons.Outlined.TrendingUp, currentSort == TransactionSort.AMOUNT_DESC) {
+                        onSortChange(TransactionSort.AMOUNT_DESC)
+                        showSortMenu = false
+                    }
+                    SortMenuItem(colors, "Menor monto", Icons.Outlined.TrendingDown, currentSort == TransactionSort.AMOUNT_ASC) {
+                        onSortChange(TransactionSort.AMOUNT_ASC)
+                        showSortMenu = false
+                    }
+                    SortMenuItem(colors, "Categoría", Icons.Outlined.Category, currentSort == TransactionSort.CATEGORY) {
+                        onSortChange(TransactionSort.CATEGORY)
+                        showSortMenu = false
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SortMenuItem(
+    colors: AppColors,
+    label: String,
+    icon: ImageVector,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    DropdownMenuItem(
+        text = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = if (isSelected) colors.primary else colors.textSecondary
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    label,
+                    color = if (isSelected) colors.primary else colors.textPrimary,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                )
+            }
+        },
+        onClick = onClick
+    )
+}
+
+@Composable
+fun FilterChip(
+    colors: AppColors,
+    label: String,
+    icon: ImageVector,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    chipColor: Color = colors.primary
+) {
+    FilterChip(
+        selected = isSelected,
+        onClick = onClick,
+        label = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(label, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            }
+        },
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = if (isSelected) chipColor.copy(alpha = 0.15f) else colors.surfaceVariant,
+            labelColor = if (isSelected) chipColor else colors.textSecondary,
+            iconColor = if (isSelected) chipColor else colors.textSecondary,
+            selectedContainerColor = chipColor.copy(alpha = 0.15f),
+            selectedLabelColor = chipColor,
+            selectedLeadingIconColor = chipColor
+        ),
+        border = if (isSelected) {
+            BorderStroke(1.5.dp, chipColor.copy(alpha = 0.5f))
+        } else {
+            BorderStroke(1.dp, colors.textTertiary.copy(alpha = 0.2f))
+        }
+    )
 }
 
 @Composable
@@ -338,14 +648,31 @@ private fun LoadingState(colors: AppColors) {
 }
 
 @Composable
-private fun EmptyState(colors: AppColors) {
+private fun EmptyState(colors: AppColors, filter: TransactionFilter = TransactionFilter.ALL) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
             Icon(Icons.Outlined.Receipt, null, modifier = Modifier.size(64.dp), tint = colors.textTertiary.copy(alpha = 0.5f))
             Spacer(modifier = Modifier.height(16.dp))
-            Text("No hay transacciones", color = colors.textSecondary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+            Text(
+                when (filter) {
+                    TransactionFilter.ALL -> "No hay transacciones"
+                    TransactionFilter.INCOME -> "No hay ingresos"
+                    TransactionFilter.EXPENSE -> "No hay egresos"
+                },
+                color = colors.textSecondary,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium
+            )
             Spacer(modifier = Modifier.height(8.dp))
-            Text("Registra tu primera transacción usando el botón de arriba", color = colors.textTertiary, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+            Text(
+                when (filter) {
+                    TransactionFilter.ALL -> "Registra tu primera transacción usando el botón de arriba"
+                    else -> "No se encontraron transacciones con este filtro"
+                },
+                color = colors.textTertiary,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
@@ -361,6 +688,7 @@ private fun TransactionsList(colors: AppColors, transactions: List<TransactionIt
     }
 }
 
+// Resto de composables sin cambios...
 @Composable
 fun SaludFinancieraCard(colors: AppColors, ingresos: String, egresos: String) {
     Card(
@@ -607,7 +935,6 @@ fun ToggleViewButton(colors: AppColors, showTrends: Boolean, onClick: () -> Unit
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun TendenciasCard(colors: AppColors, transactions: List<TransactionItem>) {
-    // Agrupar transacciones por categoría
     val categoryTotals = transactions
         .filter { it.type == "expense" }
         .groupBy { it.category }
