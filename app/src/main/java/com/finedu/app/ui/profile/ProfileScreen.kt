@@ -37,9 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.finedu.app.navigation.AppRutas
-import com.finedu.app.ui.dashboard.MainDashboardViewModel
-import com.finedu.app.ui.dictation.UiEvent
+
 import com.finedu.app.ui.theme.SetStatusBarIcons
 import kotlinx.coroutines.launch
 
@@ -47,16 +45,13 @@ import kotlinx.coroutines.launch
 fun ProfileScreen(
     navController: NavController,
     onLogoutClick: () -> Unit,
-    viewModel: ProfileViewModel = hiltViewModel(),
-    dashboardViewModel: MainDashboardViewModel = hiltViewModel(
-        navController.getBackStackEntry(AppRutas.HOME_SCREEN)
-    )
+    viewModel: ProfileViewModel = hiltViewModel()
 ) {
-    val dashboardState by dashboardViewModel.state.collectAsState()
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var showConfirmDialog by remember { mutableStateOf(false) }
+    SetStatusBarIcons(useDarkIcons = false)
 
     LaunchedEffect(key1 = true) {
         viewModel.uiEvent.collect { event ->
@@ -68,6 +63,15 @@ fun ProfileScreen(
                 }
                 is ProfileUiEvent.NavigateToLogin -> {
                     onLogoutClick()
+                }
+                is ProfileUiEvent.SaveCapitalSuccess -> {
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("show_success_snackbar", "¡Capital guardado!")
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("refresh_transactions", true)
+                    navController.popBackStack()
                 }
             }
         }
@@ -108,10 +112,15 @@ fun ProfileScreen(
                     icon = Icons.Outlined.AccountBalanceWallet
                 ) {
                     ConfiguracionCapitalContent(
-                        capitalInicial = dashboardState.capitalAmount,
-                        onSave = { monto, frecuencia ->
-                            viewModel.saveCapital(monto, frecuencia)
-                        }
+                        // Pasa los datos desde el state
+                        amount = state.capitalAmount,
+                        periodicity = state.capitalPeriodicity,
+                        isLoading = state.isLoadingCapital,
+                        isSaving = state.isSavingCapital,
+                        // Pasa las acciones al ViewModel
+                        onAmountChanged = { viewModel.onCapitalAmountChanged(it) },
+                        onPeriodicityChanged = { viewModel.onPeriodicityChanged(it) },
+                        onSave = { viewModel.saveCapital() }
                     )
                 }
             }
@@ -321,69 +330,90 @@ fun ActionLink(title: String, icon: ImageVector, color: Color = MaterialTheme.co
         Text(text = title, modifier = Modifier.weight(1f), fontSize = 14.sp, color = color)
     }
 }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConfiguracionCapitalContent(
-    capitalInicial: Double,
-    onSave: (String, String) -> Unit
-)
- {
-    var monto by remember { mutableStateOf(capitalInicial.toString()) }
-     val opcionesFrecuencia = listOf("Semanal", "Quincenal", "Mensual")
+    // Acepta el estado y los eventos desde el ViewModel
+    amount: String,
+    periodicity: String,
+    isLoading: Boolean,
+    isSaving: Boolean,
+    onAmountChanged: (String) -> Unit,
+    onPeriodicityChanged: (String) -> Unit,
+    onSave: () -> Unit
+) {
+    // Ya no usa 'remember' para 'monto' o 'frecuencia'
+    val opcionesFrecuencia = listOf("Semanal", "Quincenal", "Mensual")
     var isFrecuenciaExpanded by remember { mutableStateOf(false) }
-    var frecuencia by remember { mutableStateOf(opcionesFrecuencia[2]) }
 
-    OutlinedTextField(
-        value = monto,
-        onValueChange = { monto = it },
-        label = { Text("Monto de Capital") },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        modifier = Modifier.fillMaxWidth()
-    )
-    Spacer(modifier = Modifier.height(8.dp))
-    ExposedDropdownMenuBox(
-        expanded = isFrecuenciaExpanded,
-        onExpandedChange = { isFrecuenciaExpanded = !isFrecuenciaExpanded },
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    // Muestra un spinner mientras carga los datos (GET)
+    if (isLoading) {
+        Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+    } else {
+        // Muestra los campos cuando los datos están listos
         OutlinedTextField(
-            value = frecuencia,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Frecuencia de Actualización") },
-            trailingIcon = {
-                ExposedDropdownMenuDefaults.TrailingIcon(expanded = isFrecuenciaExpanded)
-            },
-            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor()
+            value = amount,
+            onValueChange = onAmountChanged, // Llama al ViewModel
+            label = { Text("Monto de Capital") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth(),
+            readOnly = isSaving // Deshabilita si está guardando
         )
-
-        ExposedDropdownMenu(
+        Spacer(modifier = Modifier.height(8.dp))
+        ExposedDropdownMenuBox(
             expanded = isFrecuenciaExpanded,
-            onDismissRequest = { isFrecuenciaExpanded = false }
+            onExpandedChange = { if (!isSaving) isFrecuenciaExpanded = !isFrecuenciaExpanded }, // Deshabilita
+            modifier = Modifier.fillMaxWidth()
         ) {
-            opcionesFrecuencia.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option) },
-                    onClick = {
-                        frecuencia = option
-                        isFrecuenciaExpanded = false
-                    }
-                )
+            OutlinedTextField(
+                value = periodicity,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Frecuencia de Actualización") },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = isFrecuenciaExpanded)
+                },
+                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor()
+            )
+
+            ExposedDropdownMenu(
+                expanded = isFrecuenciaExpanded,
+                onDismissRequest = { isFrecuenciaExpanded = false }
+            ) {
+                opcionesFrecuencia.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option) },
+                        onClick = {
+                            onPeriodicityChanged(option) // Llama al ViewModel
+                            isFrecuenciaExpanded = false
+                        }
+                    )
+                }
             }
         }
-    }
 
-    Spacer(modifier = Modifier.height(16.dp))
-    Button(
-        onClick = {
-            onSave(monto, frecuencia)
-        },
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Text("Guardar")
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = onSave, // Llama al ViewModel
+            enabled = !isSaving, // Se deshabilita si está guardando (PUT)
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            if (isSaving) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text("Guardar")
+            }
+        }
     }
 }
 @Composable
