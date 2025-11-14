@@ -48,8 +48,14 @@ data class DictationResponse(
     @SerializedName("type") val type: String = "",
     @SerializedName("amount") val amount: Double = 0.0,
     @SerializedName("category") val category: String = "",
-    @SerializedName("descripcion") val description: String = "",
-    @SerializedName("date") val date: String = ""
+    @SerializedName("descripcion") val description: String? = null, // Ahora es nullable
+    @SerializedName("date") val date: String = "",
+
+    // Campos adicionales para manejar errores del backend
+    @SerializedName("error") val error: String? = null,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("detail") val detail: String? = null,
+    @SerializedName("success") val success: Boolean? = null
 )
 // Respuesta de Transacciones
 data class TransactionsResponse(

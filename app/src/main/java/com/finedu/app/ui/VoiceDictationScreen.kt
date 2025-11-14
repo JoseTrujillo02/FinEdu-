@@ -17,6 +17,8 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,6 +35,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavController
@@ -44,17 +47,20 @@ import kotlinx.coroutines.delay
 data class AlertState(
     val show: Boolean = false,
     val message: String = "",
-    val type: AlertType = AlertType.SUCCESS
+    val type: AlertType = AlertType.SUCCESS,
+    val showExtraInfo: Boolean = false
 )
 
 enum class AlertType {
-    SUCCESS, ERROR
+    SUCCESS, ERROR, INFO, WARNING
 }
 
 // Paleta de colores refinada - Verde como acento
 private val FineduGreen = Color(0xFF66BB6A)
 private val FineduDarkGreen = Color(0xFF4CAF50)
 private val FineduRed = Color(0xFFEF5350)
+private val FineduBlue = Color(0xFF2196F3)
+private val FineduOrange = Color(0xFFFF9800)
 private val DarkGray = Color(0xFF2C3E50)
 private val MediumGray = Color(0xFF4A5568)
 private val LightGray = Color(0xFF9CA3AF)
@@ -89,12 +95,33 @@ fun VoiceDictationScreen(
                     navController.popBackStack()
                 }
                 is UiEvent.Error -> {
+                    // Detectar tipos específicos de error y mostrar mensajes apropiados
+                    val (type, message) = when {
+                        // Errores de fondos insuficientes
+                        event.message.contains("fondos insuficientes", ignoreCase = true) ||
+                                event.message.contains("no tienes suficiente", ignoreCase = true) ||
+                                event.message.contains("saldo insuficiente", ignoreCase = true) ||
+                                event.message.contains("no hay suficiente", ignoreCase = true) ||
+                                event.message.contains("excede", ignoreCase = true) ||
+                                event.message.contains("supera", ignoreCase = true) -> {
+                            AlertType.WARNING to "No tienes suficiente dinero disponible para realizar esta transacción. Verifica tu capital actual."
+                        }
+                        // Errores de capital no configurado
+                        event.message.contains("capital", ignoreCase = true) &&
+                                event.message.contains("configurado", ignoreCase = true) -> {
+                            AlertType.WARNING to "Debes configurar tu capital inicial en tu perfil antes de registrar transacciones."
+                        }
+                        // Otros errores
+                        else -> AlertType.ERROR to event.message
+                    }
+
                     alertState = AlertState(
                         show = true,
-                        message = event.message,
-                        type = AlertType.ERROR
+                        message = message,
+                        type = type,
+                        showExtraInfo = false
                     )
-                    delay(4000)
+                    delay(5000)
                     alertState = alertState.copy(show = false)
                 }
             }
@@ -110,6 +137,7 @@ fun VoiceDictationScreen(
 
             if (!matches.isNullOrEmpty()) {
                 val newText = matches[0]
+                // Mostrar el texto exactamente como fue reconocido
                 recognizedText = newText
 
                 if (newText.isNotBlank()) {
@@ -279,7 +307,7 @@ fun VoiceDictationScreen(
             }
         }
 
-        // Alert Dialog Centralizado
+        // Alert Dialog Centralizado con información adicional
         AnimatedAlertDialog(
             alertState = alertState,
             onDismiss = { alertState = alertState.copy(show = false) }
@@ -356,17 +384,6 @@ fun MicrophoneButton(
         label = "pulse_alpha3"
     )
 
-    // Rotación sutil del ícono cuando está grabando
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 3000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "icon_rotation"
-    )
-
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier.size(200.dp)
@@ -410,9 +427,7 @@ fun MicrophoneButton(
                 .size(120.dp)
                 .shadow(
                     elevation = if (isRecording) 12.dp else 8.dp,
-                    shape = CircleShape,
-                    ambientColor = if (isRecording) FineduGreen else Color.Black,
-                    spotColor = if (isRecording) FineduGreen else Color.Black
+                    shape = CircleShape
                 )
         ) {
             Box(
@@ -448,7 +463,6 @@ fun MicrophoneButton(
             ) {
                 if (isRecording) {
                     Box(contentAlignment = Alignment.Center) {
-                        // Indicador de carga con rotación
                         CircularProgressIndicator(
                             modifier = Modifier
                                 .size(70.dp)
@@ -457,7 +471,6 @@ fun MicrophoneButton(
                             strokeWidth = 3.dp
                         )
 
-                        // Ícono central con pulso
                         Icon(
                             Icons.Filled.Mic,
                             contentDescription = "Procesando",
@@ -468,9 +481,7 @@ fun MicrophoneButton(
                         )
                     }
                 } else {
-                    // Ícono del micrófono con efecto de brillo
                     Box(contentAlignment = Alignment.Center) {
-                        // Brillo detrás del ícono
                         Box(
                             modifier = Modifier
                                 .size(80.dp)
@@ -496,7 +507,6 @@ fun MicrophoneButton(
             }
         }
 
-        // Pequeños indicadores visuales alrededor cuando está listo
         if (!isRecording && enabled) {
             Box(
                 modifier = Modifier
@@ -555,17 +565,32 @@ fun AnimatedAlertDialog(
                     val icon: ImageVector
                     val iconColor: Color
                     val backgroundColor: Color
+                    val title: String
 
                     when (alertState.type) {
                         AlertType.SUCCESS -> {
                             icon = Icons.Filled.CheckCircle
                             iconColor = FineduGreen
                             backgroundColor = FineduGreen.copy(alpha = 0.1f)
+                            title = "¡Éxito!"
                         }
                         AlertType.ERROR -> {
                             icon = Icons.Filled.Error
                             iconColor = FineduRed
                             backgroundColor = FineduRed.copy(alpha = 0.1f)
+                            title = "Error"
+                        }
+                        AlertType.WARNING -> {
+                            icon = Icons.Outlined.Warning
+                            iconColor = FineduOrange
+                            backgroundColor = FineduOrange.copy(alpha = 0.1f)
+                            title = "Atención"
+                        }
+                        AlertType.INFO -> {
+                            icon = Icons.Outlined.Info
+                            iconColor = FineduBlue
+                            backgroundColor = FineduBlue.copy(alpha = 0.1f)
+                            title = "Información"
                         }
                     }
 
@@ -589,7 +614,7 @@ fun AnimatedAlertDialog(
                     Spacer(modifier = Modifier.height(24.dp))
 
                     Text(
-                        text = if (alertState.type == AlertType.SUCCESS) "¡Éxito!" else "Error",
+                        text = title,
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         color = DarkGray
@@ -606,7 +631,7 @@ fun AnimatedAlertDialog(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    if (alertState.type == AlertType.ERROR) {
+                    if (alertState.type != AlertType.SUCCESS) {
                         Button(
                             onClick = onDismiss,
                             modifier = Modifier
@@ -614,7 +639,12 @@ fun AnimatedAlertDialog(
                                 .height(48.dp),
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = FineduGreen
+                                containerColor = when (alertState.type) {
+                                    AlertType.ERROR -> FineduRed
+                                    AlertType.WARNING -> FineduOrange
+                                    AlertType.INFO -> FineduBlue
+                                    else -> FineduGreen
+                                }
                             )
                         ) {
                             Text(
