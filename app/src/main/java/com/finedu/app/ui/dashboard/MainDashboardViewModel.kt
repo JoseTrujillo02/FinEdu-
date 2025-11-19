@@ -51,7 +51,6 @@ class MainDashboardViewModel @Inject constructor(
             val fromDate = "$year-${String.format("%02d", month)}-01"
 
             try {
-                // Ejecutar en IO para no bloquear UI
                 val transactionsDeferred = async(Dispatchers.IO) {
                     runCatching { authApiService.getTransactions(token = token, from = fromDate) }
                 }
@@ -59,16 +58,9 @@ class MainDashboardViewModel @Inject constructor(
                     runCatching { authApiService.getCapitalSettings(token = token) }
                 }
 
-                // await resultados (cada uno puede fallar, lo manejamos)
                 val transactionsResult = transactionsDeferred.await()
                 val capitalResult = capitalDeferred.await()
 
-                // Si alguna coroutine fue cancelada debemos propagarla
-                // (no atrapar CancellationException como general)
-                // runCatching no captura CancellationException por default; si se catched, re-lanzar:
-                // (en este patrón no necesitamos re-lanzar explícitamente aquí)
-
-                // Manejo de cada respuesta:
                 if (transactionsResult.isFailure) {
                     val ex = transactionsResult.exceptionOrNull()
                     handleNetworkException(ex)
@@ -83,7 +75,6 @@ class MainDashboardViewModel @Inject constructor(
                 val transactionsResponse = transactionsResult.getOrNull()
                 val capitalResponse = capitalResult.getOrNull()
 
-                // Comprobaciones seguras antes de usar body()
                 if (transactionsResponse == null || capitalResponse == null) {
                     _state.update {
                         it.copy(
@@ -94,7 +85,6 @@ class MainDashboardViewModel @Inject constructor(
                     return@launch
                 }
 
-                // Manejo de 401 (sesión inválida)
                 if (transactionsResponse.code() == 401 || capitalResponse.code() == 401) {
                     sessionRepository.clearSession()
                     _state.update {
@@ -116,7 +106,6 @@ class MainDashboardViewModel @Inject constructor(
                     return@launch
                 }
 
-                // Usar safe-call y valores por defecto
                 val transactions = transactionsResponse.body()?.items ?: emptyList<TransactionItem>()
                 val totalEgresos = transactions.filter { it.type == "expense" }.sumOf { it.amount }
                 val totalIngresos = transactions.filter { it.type == "income" }.sumOf { it.amount }
@@ -134,12 +123,65 @@ class MainDashboardViewModel @Inject constructor(
                 }
 
             } catch (ce: CancellationException) {
-                // Re-lanzar cancelaciones para respetar la semántica de coroutines
                 throw ce
             } catch (e: Exception) {
-                // Último recurso: mapear excepción y actualizar estado
                 handleNetworkException(e)
             }
+        }
+    }
+
+    suspend fun deleteTransaction(transactionId: String) {
+        try {
+            _state.update { it.copy(isLoading = true, error = null) }
+
+            val session = sessionRepository.getStoredSession().firstOrNull()
+            if (session == null) {
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        error = "No se pudo obtener la sesión"
+                    )
+                }
+                return
+            }
+
+            val token = "Bearer ${session.idToken}"
+
+            val response = authApiService.deleteTransaction(
+                token = token,
+                transactionId = transactionId
+            )
+
+            if (response.isSuccessful) {
+                // Recargar datos después de eliminar
+                loadDashboardDataForThisMonth()
+                _state.update {
+                    it.copy(error = "Transacción eliminada exitosamente")
+                }
+            } else if (response.code() == 401) {
+                sessionRepository.clearSession()
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        error = "Tu sesión ha expirado. Por favor, inicia sesión de nuevo."
+                    )
+                }
+            } else {
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        error = "Error al eliminar transacción: ${response.code()}"
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            _state.update {
+                it.copy(
+                    isLoading = false,
+                    error = "Error al eliminar transacción: ${e.message}"
+                )
+            }
+            Log.e("MainDashboardVM", "Error al eliminar transacción", e)
         }
     }
 

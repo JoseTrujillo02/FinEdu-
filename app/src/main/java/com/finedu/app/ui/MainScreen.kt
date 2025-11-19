@@ -133,21 +133,22 @@ fun MainScreen(mainNavController: NavController, onLogoutClick: () -> Unit) {
 
     SetStatusBarIcons(useDarkIcons = !isSystemInDarkTheme())
 
-            DisposableEffect(Unit) {
-                SessionExpiredManager.setListener {
-                    scope.launch {
-                        snackbarHostState.showSnackbar(
-                            message = "Tu sesión ha expirado. Por favor, inicia sesión nuevamente.",
-                            duration = SnackbarDuration.Short
-                        )
-                        kotlinx.coroutines.delay(1500)
-                        onLogoutClick()
-                    }
-                }
-                onDispose {
-                    SessionExpiredManager.clearListener()
-                }
+    DisposableEffect(Unit) {
+        SessionExpiredManager.setListener {
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    message = "Tu sesión ha expirado. Por favor, inicia sesión nuevamente.",
+                    duration = SnackbarDuration.Short
+                )
+                kotlinx.coroutines.delay(1500)
+                onLogoutClick()
             }
+        }
+        onDispose {
+            SessionExpiredManager.clearListener()
+        }
+    }
+
     LaunchedEffect(Unit) { viewModel.loadDashboardDataForThisMonth() }
 
     Scaffold(
@@ -186,7 +187,11 @@ fun MainScreen(mainNavController: NavController, onLogoutClick: () -> Unit) {
                     colors = colors,
                     onAddTransactionClick = { internalNavController.navigate(MainScreenDestinations.Dictation.route) },
                     state = state,
-                    onDeleteTransaction = { scope.launch { snackbarHostState.showSnackbar("Funcionalidad próximamente") } },
+                    onDeleteTransaction = { txId ->
+                        scope.launch {
+                            viewModel.deleteTransaction(txId)
+                        }
+                    },
                     onNavigateToProfile = { mainNavController.navigate(AppRutas.PROFILE_SCREEN) }
                 )
             }
@@ -296,6 +301,113 @@ fun MainTopBar(
 }
 
 @Composable
+fun DeleteConfirmationDialog(
+    colors: AppColors,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true
+        )
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = colors.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .background(
+                            color = colors.expense.copy(alpha = 0.15f),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Outlined.Delete,
+                        contentDescription = null,
+                        modifier = Modifier.size(40.dp),
+                        tint = colors.expense
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Text(
+                    text = "¿Eliminar transacción?",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textPrimary
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Esta acción no se puede deshacer. El balance se ajustará automáticamente.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.textSecondary,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 20.sp
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.5.dp, colors.textTertiary.copy(alpha = 0.3f)),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = colors.textPrimary
+                        )
+                    ) {
+                        Text(
+                            "Cancelar",
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Button(
+                        onClick = onConfirm,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colors.expense
+                        )
+                    ) {
+                        Text(
+                            "Eliminar",
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun CapitalRequiredDialog(
     colors: AppColors,
     onDismiss: () -> Unit
@@ -312,7 +424,7 @@ fun CapitalRequiredDialog(
                 .fillMaxWidth()
                 .padding(16.dp),
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = colors.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
             Column(
@@ -321,7 +433,6 @@ fun CapitalRequiredDialog(
                     .padding(32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Ícono informativo
                 Box(
                     modifier = Modifier
                         .size(80.dp)
@@ -345,7 +456,7 @@ fun CapitalRequiredDialog(
                     text = "Capital No Configurado",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF2C3E50)
+                    color = colors.textPrimary
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -353,14 +464,13 @@ fun CapitalRequiredDialog(
                 Text(
                     text = "Para poder registrar transacciones, primero debes configurar tu capital inicial en tu perfil de usuario.",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = Color(0xFF4A5568),
+                    color = colors.textSecondary,
                     textAlign = TextAlign.Center,
                     lineHeight = 24.sp
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Card con información adicional
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
@@ -382,9 +492,9 @@ fun CapitalRequiredDialog(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            "Ve a tu perfil y configura tu capital inicial antes de comenzar a registrar ingresos o gastos. Puedes establecerlo por periodo mensual o el periodo que prefieras.",
+                            "Ve a tu perfil y configura tu capital inicial antes de comenzar a registrar ingresos o gastos.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color(0xFF2C3E50),
+                            color = colors.textPrimary,
                             fontSize = 13.sp,
                             lineHeight = 18.sp
                         )
@@ -393,7 +503,6 @@ fun CapitalRequiredDialog(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Botón para cerrar
                 Button(
                     onClick = onDismiss,
                     modifier = Modifier
@@ -421,7 +530,7 @@ fun HomeScreenDashboard(
     colors: AppColors,
     onAddTransactionClick: () -> Unit,
     state: MainDashboardState,
-    onDeleteTransaction: () -> Unit,
+    onDeleteTransaction: (String) -> Unit,
     onNavigateToProfile: () -> Unit
 ) {
     var showTrends by remember { mutableStateOf(false) }
@@ -429,11 +538,10 @@ fun HomeScreenDashboard(
     var currentSort by remember { mutableStateOf(TransactionSort.DATE_DESC) }
     var searchQuery by remember { mutableStateOf("") }
     var showCapitalDialog by remember { mutableStateOf(false) }
+    var transactionToDelete by remember { mutableStateOf<String?>(null) }
 
-    // Verificar si hay capital configurado
     val hasCapital = state.capitalAmount > 0.0
 
-    // Aplicar filtros, búsqueda y ordenamiento
     val filteredAndSortedTransactions = remember(state.transactions, currentFilter, currentSort, searchQuery) {
         var transactions = when (currentFilter) {
             TransactionFilter.ALL -> state.transactions
@@ -441,7 +549,6 @@ fun HomeScreenDashboard(
             TransactionFilter.EXPENSE -> state.transactions.filter { it.type == "expense" }
         }
 
-        // Aplicar búsqueda
         if (searchQuery.isNotBlank()) {
             transactions = transactions.filter { tx ->
                 tx.category.contains(searchQuery, ignoreCase = true) ||
@@ -461,11 +568,21 @@ fun HomeScreenDashboard(
         transactions
     }
 
-    // Mostrar dialog de capital requerido
     if (showCapitalDialog) {
         CapitalRequiredDialog(
             colors = colors,
             onDismiss = { showCapitalDialog = false }
+        )
+    }
+
+    if (transactionToDelete != null) {
+        DeleteConfirmationDialog(
+            colors = colors,
+            onConfirm = {
+                onDeleteTransaction(transactionToDelete!!)
+                transactionToDelete = null
+            },
+            onDismiss = { transactionToDelete = null }
         )
     }
 
@@ -516,13 +633,11 @@ fun HomeScreenDashboard(
             }
         }
 
-        // Filtros, búsqueda y ordenamiento
         item {
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Barra de búsqueda
                 SearchBar(
                     colors = colors,
                     query = searchQuery,
@@ -530,7 +645,6 @@ fun HomeScreenDashboard(
                     onClear = { searchQuery = "" }
                 )
 
-                // Filtros y ordenamiento
                 FilterAndSortRow(
                     colors = colors,
                     currentFilter = currentFilter,
@@ -553,7 +667,9 @@ fun HomeScreenDashboard(
                 when {
                     state.isLoading -> LoadingState(colors)
                     filteredAndSortedTransactions.isEmpty() -> EmptyState(colors, currentFilter)
-                    else -> TransactionsList(colors, filteredAndSortedTransactions, onDeleteTransaction)
+                    else -> TransactionsList(colors, filteredAndSortedTransactions) { txId ->
+                        transactionToDelete = txId
+                    }
                 }
             }
         }
@@ -626,7 +742,6 @@ fun FilterAndSortRow(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Filtros
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth()
@@ -662,7 +777,6 @@ fun FilterAndSortRow(
             }
         }
 
-        // Ordenamiento
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -843,12 +957,12 @@ private fun EmptyState(colors: AppColors, filter: TransactionFilter = Transactio
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-private fun TransactionsList(colors: AppColors, transactions: List<TransactionItem>, onDelete: () -> Unit) {
+private fun TransactionsList(colors: AppColors, transactions: List<TransactionItem>, onDelete: (String) -> Unit) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        items(transactions) { tx -> TransactionItemRow(colors, tx, onDelete) }
+        items(transactions) { tx -> TransactionItemRow(colors, tx) { onDelete(tx.id) } }
     }
 }
 
@@ -993,7 +1107,12 @@ private fun RowScope.ChartBar(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, null, tint = color, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(4.dp))
-            Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
+            Text(
+                label,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.textPrimary
+            )
         }
     }
 }

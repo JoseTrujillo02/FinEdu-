@@ -38,7 +38,7 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun RegisterScreen(
-    onRegisterClick: (String, String, String) -> Unit,
+    onRegisterClick: (String, String, String, String) -> Unit,
     onLoginClick: () -> Unit,
     onTermsClick: () -> Unit,
     state: RegisterState = RegisterState(),
@@ -129,7 +129,7 @@ fun RegisterScreen(
                         onValueChange = { name = it },
                         placeholder = {
                             Text(
-                                "Nombre",
+                                "Nombre completo",
                                 color = Color.Gray.copy(alpha = 0.6f)
                             )
                         },
@@ -304,7 +304,7 @@ fun RegisterScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 20.dp),
+                            .padding(bottom = 20.dp, top = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Checkbox(
@@ -321,13 +321,11 @@ fun RegisterScreen(
                             color = Color.Blue,
                             fontSize = 13.sp,
                             style = LocalTextStyle.current.copy(
-                                // ¡Añadimos un subrayado para que parezca un link!
                                 textDecoration = TextDecoration.Underline
                             ),
                             modifier = Modifier
                                 .padding(start = 4.dp)
                                 .clickable(enabled = !state.isLoading) {
-                                    // ¡Esta es la acción!
                                     onTermsClick()
                                 }
                         )
@@ -336,10 +334,7 @@ fun RegisterScreen(
                     // Botón Registrar
                     Button(
                         onClick = {
-                            if (password != confirmPassword) {
-                                // El ViewModel manejará este error
-                            }
-                            onRegisterClick(name, email, password)
+                            onRegisterClick(name, email, password, confirmPassword)
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -409,16 +404,23 @@ fun NotificationCard(
         Color(0xFF4CAF50).copy(alpha = 0.95f)
     }
 
-    // Auto-dismiss después de 4 segundos
+    // Auto-dismiss con tiempo ajustado según la longitud del mensaje
+    val dismissDelay = when {
+        message.length > 100 -> 8000L  // 8 segundos para mensajes largos
+        message.length > 50 -> 6000L   // 6 segundos para mensajes medianos
+        else -> 4000L                  // 4 segundos para mensajes cortos
+    }
+
     LaunchedEffect(message) {
-        delay(4000)
+        delay(dismissDelay)
         onDismiss()
     }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp)),
+            .clip(RoundedCornerShape(16.dp))
+            .heightIn(min = 60.dp, max = 300.dp), // Altura máxima para scroll
         colors = CardDefaults.cardColors(
             containerColor = backgroundColor
         ),
@@ -431,22 +433,32 @@ fun NotificationCard(
                 .fillMaxWidth()
                 .padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Top // Cambiado a Top para mensajes largos
         ) {
             Icon(
                 imageVector = if (isError) Icons.Filled.Warning else Icons.Filled.CheckCircle,
                 contentDescription = null,
                 tint = Color.White,
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier
+                    .size(24.dp)
+                    .padding(top = 2.dp) // Alineado con el texto
             )
 
-            Text(
-                text = message,
-                color = Color.White,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.weight(1f)
-            )
+            // Contenedor con scroll para mensajes largos
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(max = 250.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    text = message,
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    lineHeight = 20.sp
+                )
+            }
 
             IconButton(
                 onClick = onDismiss,

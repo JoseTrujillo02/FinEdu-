@@ -2,11 +2,13 @@ package com.finedu.app.auth.data
 
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.HTTP
 import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.PUT
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface AuthApiService {
@@ -40,4 +42,12 @@ interface AuthApiService {
         @Header("Authorization") token: String,
         @Body request: DeleteAccountRequest
     ): Response<Unit>
+    // Agrega este endpoint a tu interfaz AuthApiService
+
+    @DELETE("api/transactions/{transactionId}")
+    suspend fun deleteTransaction(
+        @Header("Authorization") token: String,
+        @Path("transactionId") transactionId: String
+    ): Response<Unit>
+
 }
