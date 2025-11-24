@@ -1,7 +1,9 @@
 package com.finedu.app.ui
 
+import android.Manifest
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -35,15 +37,16 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import com.finedu.app.R
 import com.finedu.app.ui.dictation.UiEvent
 import com.finedu.app.ui.dictation.VoiceDictationViewModel
 import kotlinx.coroutines.delay
 
+// --- MODELOS DE UI LOCALES ---
 data class AlertState(
     val show: Boolean = false,
     val message: String = "",
@@ -55,7 +58,7 @@ enum class AlertType {
     SUCCESS, ERROR, INFO, WARNING
 }
 
-// Paleta de colores refinada - Verde como acento
+// --- COLORES ---
 private val FineduGreen = Color(0xFF66BB6A)
 private val FineduDarkGreen = Color(0xFF4CAF50)
 private val FineduRed = Color(0xFFEF5350)
@@ -75,7 +78,7 @@ fun VoiceDictationScreen(
     var alertState by remember { mutableStateOf(AlertState()) }
     val context = LocalContext.current
 
-    // Manejo de eventos UI
+    // Manejo de eventos que vienen del ViewModel (Respuestas de la API)
     LaunchedEffect(key1 = true) {
         viewModel.uiEvent.collect { event ->
             when (event) {
@@ -86,41 +89,37 @@ fun VoiceDictationScreen(
                         type = AlertType.SUCCESS
                     )
                     delay(2000)
+                    // Dejar recados para MainScreen
                     navController.previousBackStackEntry
                         ?.savedStateHandle
                         ?.set("show_success_snackbar", event.message)
                     navController.previousBackStackEntry
                         ?.savedStateHandle
                         ?.set("refresh_transactions", true)
+                    // Regresar
                     navController.popBackStack()
                 }
                 is UiEvent.Error -> {
-                    // Detectar tipos específicos de error y mostrar mensajes apropiados
+                    // Clasificación de errores para mostrar iconos/colores distintos
                     val (type, message) = when {
-                        // Errores de fondos insuficientes
                         event.message.contains("fondos insuficientes", ignoreCase = true) ||
                                 event.message.contains("no tienes suficiente", ignoreCase = true) ||
-                                event.message.contains("saldo insuficiente", ignoreCase = true) ||
-                                event.message.contains("no hay suficiente", ignoreCase = true) ||
-                                event.message.contains("excede", ignoreCase = true) ||
-                                event.message.contains("supera", ignoreCase = true) -> {
-                            AlertType.WARNING to "No tienes suficiente dinero disponible para realizar esta transacción. Verifica tu capital actual."
+                                event.message.contains("saldo insuficiente", ignoreCase = true) -> {
+                            AlertType.WARNING to "No tienes suficiente dinero disponible. Verifica tu capital."
                         }
-                        // Errores de capital no configurado
                         event.message.contains("capital", ignoreCase = true) &&
                                 event.message.contains("configurado", ignoreCase = true) -> {
-                            AlertType.WARNING to "Debes configurar tu capital inicial en tu perfil antes de registrar transacciones."
+                            AlertType.WARNING to "Debes configurar tu capital inicial en tu perfil."
                         }
-                        // Otros errores
                         else -> AlertType.ERROR to event.message
                     }
 
                     alertState = AlertState(
                         show = true,
                         message = message,
-                        type = type,
-                        showExtraInfo = false
+                        type = type
                     )
+                    // Ocultar alerta después de 5 segundos
                     delay(5000)
                     alertState = alertState.copy(show = false)
                 }
@@ -128,6 +127,7 @@ fun VoiceDictationScreen(
         }
     }
 
+    // 1. LAUNCHER DE RECONOCIMIENTO DE VOZ
     val speechRecognizerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -137,30 +137,25 @@ fun VoiceDictationScreen(
 
             if (!matches.isNullOrEmpty()) {
                 val newText = matches[0]
-                // Mostrar el texto exactamente como fue reconocido
                 recognizedText = newText
-
+                // Auto-envío si hay texto
                 if (newText.isNotBlank()) {
                     viewModel.sendMessage(newText)
                 }
             }
         } else {
-            alertState = AlertState(
-                show = true,
-                message = "Reconocimiento cancelado o fallido",
-                type = AlertType.ERROR
-            )
+            // Si el usuario cancela o hay error en el reconocimiento
+            // Opcional: alertState = AlertState(show = true, message = "Cancelado", type = AlertType.INFO)
         }
     }
 
-    val startSpeechRecognition = {
+    // Función interna para construir y lanzar el Intent de voz
+    val launchDictationIntent = {
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-MX")
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "es-MX")
-            putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, true)
-            putExtra(RecognizerIntent.EXTRA_SUPPORTED_LANGUAGES, arrayListOf("es-MX", "es-ES", "es"))
             putExtra(RecognizerIntent.EXTRA_PROMPT, "Habla ahora…")
+            // Espera 5 segundos de silencio antes de terminar automáticamente
             putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 5000L)
         }
 
@@ -175,10 +170,44 @@ fun VoiceDictationScreen(
         }
     }
 
+    // 2. LAUNCHER DE PERMISOS
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            // Si el usuario da permiso, lanzamos el dictado inmediatamente
+            launchDictationIntent()
+        } else {
+            // Si deniega, mostramos alerta
+            alertState = AlertState(
+                show = true,
+                message = "Se requiere permiso de micrófono para escuchar tu gasto.",
+                type = AlertType.WARNING
+            )
+        }
+    }
+
+    // 3. FUNCIÓN DEL BOTÓN (Manejador de Click)
+    val handleMicrophoneClick = {
+        val hasPermission = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.RECORD_AUDIO
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (hasPermission) {
+            // Ya tiene permiso -> Dictar
+            launchDictationIntent()
+        } else {
+            // No tiene permiso -> Pedir
+            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
+    // --- INTERFAZ DE USUARIO ---
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
-        // Imagen de fondo con overlay oscuro sutil
+        // Fondo
         Image(
             painter = painterResource(id = R.drawable.login_background),
             contentDescription = null,
@@ -186,7 +215,7 @@ fun VoiceDictationScreen(
             contentScale = ContentScale.Crop
         )
 
-        // Overlay oscuro para mejorar contraste
+        // Overlay Oscuro
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -199,7 +228,7 @@ fun VoiceDictationScreen(
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Header con botón de volver
+            // Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -208,17 +237,12 @@ fun VoiceDictationScreen(
             ) {
                 IconButton(
                     onClick = { navController.popBackStack() },
-                    modifier = Modifier
-                        .background(
-                            color = Color.White.copy(alpha = 0.2f),
-                            shape = CircleShape
-                        )
-                ) {
-                    Icon(
-                        Icons.Filled.ArrowBack,
-                        contentDescription = "Volver",
-                        tint = Color.White
+                    modifier = Modifier.background(
+                        color = Color.White.copy(alpha = 0.2f),
+                        shape = CircleShape
                     )
+                ) {
+                    Icon(Icons.Filled.ArrowBack, contentDescription = "Volver", tint = Color.White)
                 }
 
                 Text(
@@ -231,13 +255,12 @@ fun VoiceDictationScreen(
                         .padding(horizontal = 16.dp),
                     textAlign = TextAlign.Center
                 )
-
-                Spacer(modifier = Modifier.width(48.dp))
+                Spacer(modifier = Modifier.width(48.dp)) // Balance visual
             }
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Card principal con diseño limpio y botón integrado
+            // Tarjeta Principal
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -267,16 +290,16 @@ fun VoiceDictationScreen(
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        // Botón del micrófono animado (ahora clickeable)
+                        // BOTÓN DE MICRÓFONO (Usa la nueva lógica handleMicrophoneClick)
                         MicrophoneButton(
                             isRecording = state.isLoading,
-                            onClick = startSpeechRecognition,
+                            onClick = handleMicrophoneClick, // <-- AQUÍ SE LLAMA
                             enabled = !state.isLoading
                         )
 
                         Spacer(modifier = Modifier.height(32.dp))
 
-                        // Campo de texto con diseño minimalista
+                        // Caja de Texto Reconocido
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -307,13 +330,15 @@ fun VoiceDictationScreen(
             }
         }
 
-        // Alert Dialog Centralizado con información adicional
+        // Alerta Flotante
         AnimatedAlertDialog(
             alertState = alertState,
             onDismiss = { alertState = alertState.copy(show = false) }
         )
     }
 }
+
+// --- COMPONENTES AUXILIARES (NO BORRAR) ---
 
 @Composable
 fun MicrophoneButton(
@@ -323,204 +348,79 @@ fun MicrophoneButton(
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "mic_animation")
 
-    // Animaciones para los anillos pulsantes
     val scale1 by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.3f,
+        initialValue = 1f, targetValue = 1.3f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1500, easing = FastOutSlowInEasing),
+            animation = tween(1500, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
-        ),
-        label = "ring1_scale"
+        ), label = "ring1"
     )
-
     val scale2 by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.2f,
+        initialValue = 1f, targetValue = 1.2f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1500, delayMillis = 200, easing = FastOutSlowInEasing),
+            animation = tween(1500, delayMillis = 200, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
-        ),
-        label = "ring2_scale"
+        ), label = "ring2"
     )
-
     val scale3 by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.15f,
+        initialValue = 1f, targetValue = 1.15f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1500, delayMillis = 400, easing = FastOutSlowInEasing),
+            animation = tween(1500, delayMillis = 400, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
-        ),
-        label = "ring3_scale"
+        ), label = "ring3"
     )
-
     val pulseAlpha1 by infiniteTransition.animateFloat(
-        initialValue = 0.25f,
-        targetValue = 0.05f,
+        initialValue = 0.25f, targetValue = 0.05f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1500, easing = FastOutSlowInEasing),
+            animation = tween(1500, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulse_alpha1"
-    )
-
-    val pulseAlpha2 by infiniteTransition.animateFloat(
-        initialValue = 0.2f,
-        targetValue = 0.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1500, delayMillis = 200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulse_alpha2"
-    )
-
-    val pulseAlpha3 by infiniteTransition.animateFloat(
-        initialValue = 0.15f,
-        targetValue = 0.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1500, delayMillis = 400, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulse_alpha3"
+        ), label = "alpha1"
     )
 
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier.size(200.dp)
     ) {
-        // Anillos exteriores pulsantes cuando está grabando
         if (isRecording) {
-            Box(
-                modifier = Modifier
-                    .size(200.dp)
-                    .scale(scale1)
-                    .background(
-                        color = FineduGreen.copy(alpha = pulseAlpha1),
-                        shape = CircleShape
-                    )
-            )
-            Box(
-                modifier = Modifier
-                    .size(180.dp)
-                    .scale(scale2)
-                    .background(
-                        color = FineduGreen.copy(alpha = pulseAlpha2),
-                        shape = CircleShape
-                    )
-            )
-            Box(
-                modifier = Modifier
-                    .size(160.dp)
-                    .scale(scale3)
-                    .background(
-                        color = FineduGreen.copy(alpha = pulseAlpha3),
-                        shape = CircleShape
-                    )
-            )
+            Box(Modifier.size(200.dp).scale(scale1).background(FineduGreen.copy(alpha = pulseAlpha1), CircleShape))
+            Box(Modifier.size(180.dp).scale(scale2).background(FineduGreen.copy(alpha = 0.2f), CircleShape))
+            Box(Modifier.size(160.dp).scale(scale3).background(FineduGreen.copy(alpha = 0.15f), CircleShape))
         }
 
-        // Círculo principal del micrófono con efecto de elevación
         IconButton(
             onClick = onClick,
             enabled = enabled,
             modifier = Modifier
                 .size(120.dp)
-                .shadow(
-                    elevation = if (isRecording) 12.dp else 8.dp,
-                    shape = CircleShape
-                )
+                .shadow(elevation = if (isRecording) 12.dp else 8.dp, shape = CircleShape)
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         brush = if (isRecording) {
-                            Brush.radialGradient(
-                                colors = listOf(
-                                    FineduGreen.copy(alpha = 0.3f),
-                                    FineduGreen.copy(alpha = 0.15f),
-                                    FineduGreen.copy(alpha = 0.1f)
-                                )
-                            )
+                            Brush.radialGradient(listOf(FineduGreen.copy(alpha = 0.3f), FineduGreen.copy(alpha = 0.1f)))
                         } else if (enabled) {
-                            Brush.linearGradient(
-                                colors = listOf(
-                                    FineduGreen,
-                                    FineduDarkGreen
-                                )
-                            )
+                            Brush.linearGradient(listOf(FineduGreen, FineduDarkGreen))
                         } else {
-                            Brush.linearGradient(
-                                colors = listOf(
-                                    LightGray,
-                                    LightGray.copy(alpha = 0.8f)
-                                )
-                            )
+                            Brush.linearGradient(listOf(LightGray, LightGray.copy(alpha = 0.8f)))
                         },
                         shape = CircleShape
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 if (isRecording) {
-                    Box(contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .size(70.dp)
-                                .scale(scale3),
-                            color = FineduGreen,
-                            strokeWidth = 3.dp
-                        )
-
-                        Icon(
-                            Icons.Filled.Mic,
-                            contentDescription = "Procesando",
-                            modifier = Modifier
-                                .size(40.dp)
-                                .scale(scale3),
-                            tint = FineduGreen
-                        )
-                    }
+                    CircularProgressIndicator(modifier = Modifier.size(70.dp).scale(scale3), color = FineduGreen, strokeWidth = 3.dp)
+                    Icon(Icons.Filled.Mic, contentDescription = null, modifier = Modifier.size(40.dp).scale(scale3), tint = FineduGreen)
                 } else {
-                    Box(contentAlignment = Alignment.Center) {
-                        Box(
-                            modifier = Modifier
-                                .size(80.dp)
-                                .background(
-                                    brush = Brush.radialGradient(
-                                        colors = listOf(
-                                            Color.White.copy(alpha = 0.3f),
-                                            Color.Transparent
-                                        )
-                                    ),
-                                    shape = CircleShape
-                                )
-                        )
-
-                        Icon(
-                            Icons.Filled.Mic,
-                            contentDescription = "Micrófono",
-                            modifier = Modifier.size(56.dp),
-                            tint = if (enabled) Color.White else Color.White.copy(alpha = 0.5f)
-                        )
-                    }
+                    Icon(
+                        Icons.Filled.Mic,
+                        contentDescription = "Micrófono",
+                        modifier = Modifier.size(56.dp),
+                        tint = if (enabled) Color.White else Color.White.copy(alpha = 0.5f)
+                    )
                 }
             }
-        }
-
-        if (!isRecording && enabled) {
-            Box(
-                modifier = Modifier
-                    .size(140.dp)
-                    .background(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                FineduGreen.copy(alpha = 0.05f)
-                            )
-                        ),
-                        shape = CircleShape
-                    )
-            )
         }
     }
 }
@@ -532,126 +432,51 @@ fun AnimatedAlertDialog(
 ) {
     AnimatedVisibility(
         visible = alertState.show,
-        enter = fadeIn(animationSpec = tween(300)) +
-                scaleIn(initialScale = 0.8f, animationSpec = tween(300)),
-        exit = fadeOut(animationSpec = tween(300)) +
-                scaleOut(targetScale = 0.8f, animationSpec = tween(300))
+        enter = fadeIn() + scaleIn(),
+        exit = fadeOut() + scaleOut()
     ) {
         Dialog(
             onDismissRequest = onDismiss,
-            properties = DialogProperties(
-                dismissOnBackPress = true,
-                dismissOnClickOutside = true
-            )
+            properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true)
         ) {
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.White
-                ),
-                elevation = CardDefaults.cardElevation(
-                    defaultElevation = 8.dp
-                )
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(8.dp)
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(32.dp),
+                    modifier = Modifier.fillMaxWidth().padding(32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    val icon: ImageVector
-                    val iconColor: Color
-                    val backgroundColor: Color
-                    val title: String
-
-                    when (alertState.type) {
-                        AlertType.SUCCESS -> {
-                            icon = Icons.Filled.CheckCircle
-                            iconColor = FineduGreen
-                            backgroundColor = FineduGreen.copy(alpha = 0.1f)
-                            title = "¡Éxito!"
-                        }
-                        AlertType.ERROR -> {
-                            icon = Icons.Filled.Error
-                            iconColor = FineduRed
-                            backgroundColor = FineduRed.copy(alpha = 0.1f)
-                            title = "Error"
-                        }
-                        AlertType.WARNING -> {
-                            icon = Icons.Outlined.Warning
-                            iconColor = FineduOrange
-                            backgroundColor = FineduOrange.copy(alpha = 0.1f)
-                            title = "Atención"
-                        }
-                        AlertType.INFO -> {
-                            icon = Icons.Outlined.Info
-                            iconColor = FineduBlue
-                            backgroundColor = FineduBlue.copy(alpha = 0.1f)
-                            title = "Información"
-                        }
+                    val (icon, color, title) = when (alertState.type) {
+                        AlertType.SUCCESS -> Triple(Icons.Filled.CheckCircle, FineduGreen, "¡Éxito!")
+                        AlertType.ERROR -> Triple(Icons.Filled.Error, FineduRed, "Error")
+                        AlertType.WARNING -> Triple(Icons.Outlined.Warning, FineduOrange, "Atención")
+                        AlertType.INFO -> Triple(Icons.Outlined.Info, FineduBlue, "Información")
                     }
 
                     Box(
-                        modifier = Modifier
-                            .size(80.dp)
-                            .background(
-                                color = backgroundColor,
-                                shape = CircleShape
-                            ),
+                        modifier = Modifier.size(80.dp).background(color.copy(alpha = 0.1f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            icon,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = iconColor
-                        )
+                        Icon(icon, null, modifier = Modifier.size(48.dp), tint = color)
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
-
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = DarkGray
-                    )
-
+                    Text(text = title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = DarkGray)
                     Spacer(modifier = Modifier.height(12.dp))
-
-                    Text(
-                        text = alertState.message,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MediumGray,
-                        textAlign = TextAlign.Center
-                    )
-
+                    Text(text = alertState.message, style = MaterialTheme.typography.bodyLarge, color = MediumGray, textAlign = TextAlign.Center)
                     Spacer(modifier = Modifier.height(24.dp))
 
                     if (alertState.type != AlertType.SUCCESS) {
                         Button(
                             onClick = onDismiss,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp),
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = when (alertState.type) {
-                                    AlertType.ERROR -> FineduRed
-                                    AlertType.WARNING -> FineduOrange
-                                    AlertType.INFO -> FineduBlue
-                                    else -> FineduGreen
-                                }
-                            )
+                            colors = ButtonDefaults.buttonColors(containerColor = color)
                         ) {
-                            Text(
-                                "Entendido",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
+                            Text("Entendido", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }

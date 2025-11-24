@@ -1027,7 +1027,7 @@ fun EstadisticasCard(colors: AppColors, ingresos: Double, egresos: Double) {
                 Column {
                     Text("Balance del Mes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = colors.textPrimary)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(balance.toCurrencyString(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = if (balance >= 0) colors.primary else colors.expense)
+                    Text(ingresos.toCurrencyString(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = if (balance >= 0) colors.primary else colors.expense)
                 }
 
                 val balanceColor = if (balance >= 0) colors.primary else colors.expense
@@ -1042,9 +1042,11 @@ fun EstadisticasCard(colors: AppColors, ingresos: Double, egresos: Double) {
             Spacer(modifier = Modifier.height(24.dp))
 
             Row(
-                modifier = Modifier.fillMaxWidth().height(180.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(250.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.Bottom
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 ChartBar(
                     colors = colors,

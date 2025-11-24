@@ -33,8 +33,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 
@@ -50,7 +52,12 @@ fun ProfileScreen(
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    var showPasswordDialog by remember { mutableStateOf(false) }
     var showConfirmDialog by remember { mutableStateOf(false) }
+    var showForceLogoutDialog by remember { mutableStateOf(false) }
+    var forceLogoutTitle by remember { mutableStateOf("") }   // Título dinámico
+    var forceLogoutMessage by remember { mutableStateOf("") }
+
     SetStatusBarIcons(useDarkIcons = false)
 
     LaunchedEffect(key1 = true) {
@@ -73,10 +80,52 @@ fun ProfileScreen(
                         ?.set("refresh_transactions", true)
                     navController.popBackStack()
                 }
+                is ProfileUiEvent.ShowForceLogoutDialog -> {
+                    forceLogoutTitle = event.title
+                    forceLogoutMessage = event.message
+                    showForceLogoutDialog = true
+                }
             }
         }
     }
 
+    if (showForceLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { onLogoutClick() },
+            icon = {
+                // Cambiamos el icono según el título para que se vea bonito
+                if (forceLogoutTitle.contains("Expirada"))
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = Color.Red)
+                else
+                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4CAF50))
+            },
+            title = { Text(forceLogoutTitle) },
+            text = { Text(forceLogoutMessage) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showForceLogoutDialog = false
+                        onLogoutClick()
+                    }
+                ) {
+                    Text("Aceptar e Iniciar Sesión")
+                }
+            },
+            properties = DialogProperties(
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false
+            )
+        )
+    }
+    if (showPasswordDialog) {
+        ChangePasswordDialog(
+            onDismiss = { showPasswordDialog = false },
+            onConfirm = { newPass ->
+                showPasswordDialog = false
+                viewModel.changePassword(newPass)
+            }
+        )
+    }
     if (showConfirmDialog) {
         ConfirmDeleteDialog(
             onDismiss = { showConfirmDialog = false },
@@ -166,6 +215,14 @@ fun ProfileScreen(
                 )
             }
             item {
+                ActionLink(
+                    title = "Cambiar Contraseña",
+                    icon = Icons.Outlined.LockReset, // Asegúrate de tener este icono o usa Icons.Default.Lock
+                    color = MaterialTheme.colorScheme.primary, // Color normal
+                    onClick = { showPasswordDialog = true }
+                )
+            }
+            item {
 
                 ActionLink(
                     title = "Cerrar Sesión",
@@ -245,6 +302,7 @@ fun ProfileHeader(name: String, email: String) {
 
     }
 }
+
 @Composable
 fun ConfigCard(
     title: String,
@@ -470,6 +528,8 @@ fun PreferenciasContent() {
         Text("Exportar Datos")
     }
 }
+
+
 @Composable
 fun ConfigRowWithSwitch(
     title: String,
@@ -493,6 +553,8 @@ fun ConfigRowWithSwitch(
         )
     }
 }
+
+
 @Composable
 fun ConfirmDeleteDialog(
     onDismiss: () -> Unit,
@@ -511,6 +573,46 @@ fun ConfirmDeleteDialog(
                 )
             ) {
                 Text("Sí, Eliminar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+@Composable
+fun ChangePasswordDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var newPassword by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Cambiar Contraseña") },
+        text = {
+            Column {
+                Text("Ingresa tu nueva contraseña (mínimo 8 caracteres):")
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = newPassword,
+                    onValueChange = { newPassword = it },
+                    label = { Text("Nueva Contraseña") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(newPassword) },
+                enabled = newPassword.length >= 8 // Validación simple UI
+            ) {
+                Text("Actualizar")
             }
         },
         dismissButton = {

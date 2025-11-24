@@ -79,7 +79,8 @@ data class ErrorResponse(
 // Cuerpo del Error
 data class ErrorBody(
     @SerializedName("code") val code: String = "",
-    @SerializedName("message") val message: String = ""
+    @SerializedName("message") val message: String = "",
+    @SerializedName("detail") val detail: String? = null // <-- ¡AÑADE ESTO!
 )
 // Request de Ajustes de Capital
 data class CapitalSettingsRequest(
@@ -89,4 +90,8 @@ data class CapitalSettingsRequest(
 // Request de Eliminar Cuenta
 data class DeleteAccountRequest(
     @SerializedName("confirm") val confirm: String = "" // <-- ¡CORREGIDO!
+)
+
+data class ChangePasswordRequest(
+    @SerializedName("newPassword") val newPassword: String
 )
