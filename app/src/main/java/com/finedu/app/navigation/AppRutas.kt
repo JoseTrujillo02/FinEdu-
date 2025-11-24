@@ -8,4 +8,6 @@ object AppRutas {
     const val PROFILE_SCREEN = "profile_screen"
     const val NOTIFICATIONS_SCREEN = "notifications_screen"
     const val TERMS_SCREEN = "terms_screen"
+
+    const val CHANGE_PASSWORD_SCREEN = "change_password_screen"
 }

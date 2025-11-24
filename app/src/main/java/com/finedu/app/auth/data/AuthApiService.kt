@@ -15,8 +15,10 @@ interface AuthApiService {
 
     @POST("api/auth/login")
     suspend fun login(@Body request: LoginRequest): Response<LoginResponse>
+
     @POST("api/auth/register")
     suspend fun register(@Body request: RegisterRequest): Response<RegisterResponse>
+
     @GET("api/transactions")
     suspend fun getTransactions(
         @Header("Authorization") token: String,
@@ -32,9 +34,9 @@ interface AuthApiService {
         @Body request: CapitalSettingsRequest
     ): Response<Unit>
 
-    @GET("api/settings/capital") // <-- 3. Usa @GET en la misma URL
+    @GET("api/settings/capital")
     suspend fun getCapitalSettings(
-        @Header("Authorization") token: String // <-- 4. Solo necesita el token
+        @Header("Authorization") token: String
     ): Response<CapitalSettingsRequest>
 
     @HTTP(method = "DELETE", path = "api/account/me", hasBody = true)
@@ -42,7 +44,6 @@ interface AuthApiService {
         @Header("Authorization") token: String,
         @Body request: DeleteAccountRequest
     ): Response<Unit>
-    // Agrega este endpoint a tu interfaz AuthApiService
 
     @DELETE("api/transactions/{transactionId}")
     suspend fun deleteTransaction(
@@ -50,10 +51,10 @@ interface AuthApiService {
         @Path("transactionId") transactionId: String
     ): Response<Unit>
 
-    @POST("api/auth/change-password")
+
+    @POST("api/auth/change-password")  // ✅ CORRECTO
     suspend fun changePassword(
-        @Header("Authorization") token: String,
+        @Header("Authorization") authorization: String,
         @Body request: ChangePasswordRequest
     ): Response<LoginResponse>
-
 }

@@ -35,8 +35,10 @@ import kotlinx.coroutines.delay
 fun LoginScreen(
     onLoginClick: (String, String) -> Unit,
     onRegisterClick: () -> Unit,
+    onForgotPasswordClick: () -> Unit = {},
     state: LoginState = LoginState(),
-    onDismissError: () -> Unit = {}
+    onDismissError: () -> Unit = {},
+    onClearFieldError: (String) -> Unit = {}
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -60,6 +62,7 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // Notificación general de éxito/error
             AnimatedVisibility(
                 visible = state.error != null || state.isSuccess,
                 enter = slideInVertically(
@@ -82,6 +85,7 @@ fun LoginScreen(
                     onDismiss = onDismissError
                 )
             }
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -101,7 +105,7 @@ fun LoginScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "Iniciar Sesion",
+                        text = "Iniciar Sesión",
                         style = MaterialTheme.typography.headlineMedium,
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Medium,
@@ -109,9 +113,16 @@ fun LoginScreen(
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(bottom = 32.dp)
                     )
+
+                    // Campo de Email con error específico
                     OutlinedTextField(
                         value = email,
-                        onValueChange = { email = it },
+                        onValueChange = {
+                            email = it
+                            if (state.emailError != null) {
+                                onClearFieldError("email")
+                            }
+                        },
                         placeholder = {
                             Text(
                                 "Email",
@@ -122,19 +133,42 @@ fun LoginScreen(
                             Icon(
                                 imageVector = Icons.Outlined.Email,
                                 contentDescription = "Email",
-                                tint = Color.Gray
+                                tint = if (state.emailError != null)
+                                    Color(0xFFFF5252)
+                                else
+                                    Color.Gray
                             )
                         },
+                        isError = state.emailError != null,
+                        supportingText = if (state.emailError != null) {
+                            {
+                                Text(
+                                    text = state.emailError,
+                                    color = Color(0xFFFF5252),
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.padding(start = 4.dp)
+                                )
+                            }
+                        } else null,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = Color.White,
                             unfocusedContainerColor = Color.White,
-                            focusedBorderColor = Color.Transparent,
-                            unfocusedBorderColor = Color.Transparent,
+                            errorContainerColor = Color.White,
+                            focusedBorderColor = if (state.emailError != null)
+                                Color(0xFFFF5252)
+                            else
+                                Color.Transparent,
+                            unfocusedBorderColor = if (state.emailError != null)
+                                Color(0xFFFF5252)
+                            else
+                                Color.Transparent,
+                            errorBorderColor = Color(0xFFFF5252),
                             focusedTextColor = Color.Black,
-                            unfocusedTextColor = Color.Black
+                            unfocusedTextColor = Color.Black,
+                            errorTextColor = Color.Black
                         ),
                         shape = RoundedCornerShape(12.dp),
                         singleLine = true,
@@ -143,9 +177,16 @@ fun LoginScreen(
                         ),
                         enabled = !state.isLoading
                     )
+
+                    // Campo de Contraseña con error específico
                     OutlinedTextField(
                         value = password,
-                        onValueChange = { password = it },
+                        onValueChange = {
+                            password = it
+                            if (state.passwordError != null) {
+                                onClearFieldError("password")
+                            }
+                        },
                         placeholder = {
                             Text(
                                 "Contraseña",
@@ -156,7 +197,10 @@ fun LoginScreen(
                             Icon(
                                 imageVector = Icons.Outlined.Lock,
                                 contentDescription = "Password",
-                                tint = Color.Gray
+                                tint = if (state.passwordError != null)
+                                    Color(0xFFFF5252)
+                                else
+                                    Color.Gray
                             )
                         },
                         trailingIcon = {
@@ -169,24 +213,47 @@ fun LoginScreen(
                                             android.R.drawable.ic_secure
                                     ),
                                     contentDescription = if (passwordVisible) "Ocultar" else "Mostrar",
-                                    tint = Color.Gray
+                                    tint = if (state.passwordError != null)
+                                        Color(0xFFFF5252)
+                                    else
+                                        Color.Gray
                                 )
                             }
                         },
+                        isError = state.passwordError != null,
+                        supportingText = if (state.passwordError != null) {
+                            {
+                                Text(
+                                    text = state.passwordError,
+                                    color = Color(0xFFFF5252),
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.padding(start = 4.dp)
+                                )
+                            }
+                        } else null,
                         visualTransformation = if (passwordVisible)
                             VisualTransformation.None
                         else
                             PasswordVisualTransformation(),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 24.dp),
+                            .padding(bottom = 8.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = Color.White,
                             unfocusedContainerColor = Color.White,
-                            focusedBorderColor = Color.Transparent,
-                            unfocusedBorderColor = Color.Transparent,
+                            errorContainerColor = Color.White,
+                            focusedBorderColor = if (state.passwordError != null)
+                                Color(0xFFFF5252)
+                            else
+                                Color.Transparent,
+                            unfocusedBorderColor = if (state.passwordError != null)
+                                Color(0xFFFF5252)
+                            else
+                                Color.Transparent,
+                            errorBorderColor = Color(0xFFFF5252),
                             focusedTextColor = Color.Black,
-                            unfocusedTextColor = Color.Black
+                            unfocusedTextColor = Color.Black,
+                            errorTextColor = Color.Black
                         ),
                         shape = RoundedCornerShape(12.dp),
                         singleLine = true,
@@ -195,6 +262,29 @@ fun LoginScreen(
                         ),
                         enabled = !state.isLoading
                     )
+
+                    // Enlace de "¿Olvidaste tu contraseña?"
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 24.dp),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(
+                            onClick = onForgotPasswordClick,
+                            contentPadding = PaddingValues(0.dp),
+                            enabled = !state.isLoading
+                        ) {
+                            Text(
+                                text = "¿Olvidaste tu contraseña?",
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    // Botón de login
                     Button(
                         onClick = { onLoginClick(email, password) },
                         modifier = Modifier
@@ -224,6 +314,7 @@ fun LoginScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // Enlace de registro
                     Row(
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
