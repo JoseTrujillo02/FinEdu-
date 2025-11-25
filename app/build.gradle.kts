@@ -16,7 +16,7 @@ android {
 
     defaultConfig {
         applicationId = "com.finedu.app"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 36
         versionCode = 9
         versionName = " 1.0.8"
@@ -61,17 +61,15 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
-    implementation("androidx.compose.runtime:runtime-livedata:1.9.4")
+    implementation("androidx.compose.runtime:runtime-livedata:1.9.5")
     // Compose BOM
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
-    implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation(libs.play.services.games)
     implementation(libs.androidx.compose.ui.text.google.fonts)
-    debugImplementation(libs.androidx.ui.tooling)
-    debugImplementation(libs.androidx.ui.test.manifest)
+    implementation("androidx.compose.ui:ui-graphics")
+
 
     // Retrofit
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
@@ -84,7 +82,6 @@ dependencies {
     // Gson
     implementation("com.google.code.gson:gson:2.10.1")
 
-    // Las demás dependencias que ya tienes...
     // Compose
     implementation("androidx.compose.material3:material3:1.2.0")
     implementation("androidx.compose.material:material-icons-extended:1.6.0")
@@ -92,6 +89,8 @@ dependencies {
     // ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
+    implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.compose.ui.text)
 
     // Test UI
     androidTestImplementation(platform(libs.androidx.compose.bom))

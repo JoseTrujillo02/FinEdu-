@@ -24,7 +24,6 @@ import com.finedu.app.data.UserSessionData
 import com.finedu.app.ui.MainScreen
 import com.finedu.app.ui.NotificationsScreen
 import com.finedu.app.ui.TermsScreen
-import com.finedu.app.ui.VoiceDictationScreen
 import com.finedu.app.ui.profile.ProfileScreen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
@@ -80,12 +79,9 @@ fun AppNavegacion() {
             LoginScreen(
                 onLoginClick = { email, password -> viewModel.login(email, password) },
                 onRegisterClick = { navController.navigate(AppRutas.REGISTER_SCREEN) },
-                onForgotPasswordClick = {
-                    navController.navigate(AppRutas.CHANGE_PASSWORD_SCREEN)
-                },
+
                 state = state,
                 onDismissError = { viewModel.clearError() },
-                onClearFieldError = { field -> viewModel.clearFieldError(field) }
             )
         }
 

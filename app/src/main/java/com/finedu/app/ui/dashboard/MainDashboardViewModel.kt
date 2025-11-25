@@ -21,6 +21,8 @@ import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.util.Calendar
 
+
+
 @HiltViewModel
 class MainDashboardViewModel @Inject constructor(
     private val authApiService: AuthApiService,
@@ -51,15 +53,20 @@ class MainDashboardViewModel @Inject constructor(
             val fromDate = "$year-${String.format("%02d", month)}-01"
 
             try {
+                // ✅ Cargar transacciones, capital Y categorías en paralelo
                 val transactionsDeferred = async(Dispatchers.IO) {
                     runCatching { authApiService.getTransactions(token = token, from = fromDate) }
                 }
                 val capitalDeferred = async(Dispatchers.IO) {
                     runCatching { authApiService.getCapitalSettings(token = token) }
                 }
+                val categoriesDeferred = async(Dispatchers.IO) {
+                    runCatching { authApiService.getCategories(token = token) }
+                }
 
                 val transactionsResult = transactionsDeferred.await()
                 val capitalResult = capitalDeferred.await()
+                val categoriesResult = categoriesDeferred.await()
 
                 if (transactionsResult.isFailure) {
                     val ex = transactionsResult.exceptionOrNull()
@@ -71,9 +78,14 @@ class MainDashboardViewModel @Inject constructor(
                     handleNetworkException(ex)
                     return@launch
                 }
+                // Si falla categorías, no es crítico, simplemente usamos lista vacía
+                if (categoriesResult.isFailure) {
+                    Log.w("MainDashboardVM", "No se pudieron cargar categorías", categoriesResult.exceptionOrNull())
+                }
 
                 val transactionsResponse = transactionsResult.getOrNull()
                 val capitalResponse = capitalResult.getOrNull()
+                val categoriesResponse = categoriesResult.getOrNull()
 
                 if (transactionsResponse == null || capitalResponse == null) {
                     _state.update {
@@ -111,6 +123,13 @@ class MainDashboardViewModel @Inject constructor(
                 val totalIngresos = transactions.filter { it.type == "income" }.sumOf { it.amount }
                 val capitalAmount = capitalResponse.body()?.amount ?: 0.0
 
+                // ✅ Obtener categorías del servidor (o lista vacía si falló)
+                val categories = if (categoriesResponse?.isSuccessful == true) {
+                    categoriesResponse.body()?.categories ?: emptyList()
+                } else {
+                    emptyList()
+                }
+
                 _state.update {
                     it.copy(
                         isLoading = false,
@@ -118,6 +137,7 @@ class MainDashboardViewModel @Inject constructor(
                         totalEgresos = totalEgresos,
                         totalIngresos = totalIngresos,
                         capitalAmount = capitalAmount,
+                        availableCategories = categories, // ✅ NUEVO
                         error = null
                     )
                 }

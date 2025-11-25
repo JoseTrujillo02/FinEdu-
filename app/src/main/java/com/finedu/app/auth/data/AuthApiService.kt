@@ -28,6 +28,12 @@ interface AuthApiService {
         @Query("limit") limit: Int? = 20
     ): Response<TransactionsResponse>
 
+    // ✅ NUEVO ENDPOINT: Obtener categorías únicas
+    @GET("api/transactions/categories")
+    suspend fun getCategories(
+        @Header("Authorization") token: String
+    ): Response<CategoriesResponse>
+
     @PUT("api/settings/capital")
     suspend fun updateCapitalSettings(
         @Header("Authorization") token: String,
@@ -51,10 +57,14 @@ interface AuthApiService {
         @Path("transactionId") transactionId: String
     ): Response<Unit>
 
-
-    @POST("api/auth/change-password")  // ✅ CORRECTO
+    @POST("api/auth/change-password")
     suspend fun changePassword(
         @Header("Authorization") authorization: String,
         @Body request: ChangePasswordRequest
     ): Response<LoginResponse>
 }
+
+// ✅ NUEVA DATA CLASS: Respuesta de categorías
+data class CategoriesResponse(
+    val categories: List<String>
+)
