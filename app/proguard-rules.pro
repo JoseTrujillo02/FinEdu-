@@ -1,39 +1,91 @@
-# --- Reglas para Retrofit y OkHttp (Red) ---
-# (Evita que se eliminen clases que Retrofit usa internamente)
+# ==========================
+# 🟦 PROYECTO FINEDU
+# Configuración ProGuard / R8
+# ==========================
+
+# -----------------------------------------
+# 🔵 Mantenemos anotaciones importantes
+# -----------------------------------------
+-keepattributes *Annotation*
+-keepattributes InnerClasses
+-keepattributes EnclosingMethod
+
+# -----------------------------------------
+# 🔵 Evitar que se eliminen Data Classes
+# -----------------------------------------
+-keep class kotlin.Metadata { *; }
+
+# -----------------------------------------
+# 🔵 Mantener clases de ViewModel (Login, Register, etc.)
+# -----------------------------------------
+-keep class androidx.lifecycle.** { *; }
+-dontwarn androidx.lifecycle.**
+
+# -----------------------------------------
+# 🔵 Mantener clases de coroutines
+# -----------------------------------------
+-dontwarn kotlinx.coroutines.**
+-keep class kotlinx.coroutines.** { *; }
+
+# -----------------------------------------
+# 🔵 Retrofit + OkHttp (Networking)
+# -----------------------------------------
 -keep class retrofit2.** { *; }
 -keep interface retrofit2.** { *; }
 -dontwarn retrofit2.Platform$Java8
--keep class com.squareup.okhttp3.** { *; }
--keep interface com.squareup.okhttp3.** { *; }
 
-# Regla para tus modelos de Auth (LoginResponse, User, Tokens, etc.)
+-keep class okhttp3.** { *; }
+-keep interface okhttp3.** { *; }
+-dontwarn okhttp3.**
+
+# -----------------------------------------
+# 🔵 Mantener modelos de Auth y App
+# -----------------------------------------
 -keep class com.finedu.app.auth.data.** { *; }
 -keep interface com.finedu.app.auth.data.** { *; }
 
-# Regla para tus modelos de App (UserSessionData)
 -keep class com.finedu.app.data.** { *; }
 -keep interface com.finedu.app.data.** { *; }
 
-# Regla para tus modelos de IA (FinancialAiService)
+# IA FinEdu
 -keep class com.finedu.app.ai.data.** { *; }
 -keep interface com.finedu.app.ai.data.** { *; }
 
-# Regla para las anotaciones de GSON (SerializedName)
--keepattributes Annotation
+# -----------------------------------------
+# 🔵 Gson Annotations
+# -----------------------------------------
 -keep class com.google.gson.annotations.** { *; }
 
-# --- Reglas para Retrofit y OkHttp (Red) ---
--keep class retrofit2.** { *; }
--keep interface retrofit2.** { *; }
--dontwarn retrofit2.Platform$Java8
--keep class com.squareup.okhttp3.** { *; }
--keep interface com.squareup.okhttp3.** { *; }
+# Evitar warnings innecesarios
+-dontwarn com.google.gson.**
 
-# --- ¡Reglas para tus Modelos de GSON! ---
-# Esto le dice a ProGuard que no toque NINGUNA clase en tu paquete 'data'.
--keep class com.finedu.app.auth.data.** { *; }
--keep interface com.finedu.app.auth.data.** { *; }
+# -----------------------------------------
+# 🔵 Jetpack Compose
+# -----------------------------------------
+-keep class androidx.compose.** { *; }
+-dontwarn androidx.compose.**
 
-# Regla para las anotaciones de GSON (SerializedName)
--keepattributes Annotation
--keep class com.google.gson.annotations.**{*;}
+# -----------------------------------------
+# 🔵 Mantener modelos del backend (responses)
+# -----------------------------------------
+-keepclassmembers class ** {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
+
+# -----------------------------------------
+# 🔵 Evitar ofuscación de sealed classes
+# -----------------------------------------
+-keep class ** extends kotlin.sealed.** { *; }
+
+# -----------------------------------------
+# 🔵 Evitar eliminar clases usadas por reflexión
+# -----------------------------------------
+-keepclassmembers class * {
+    @kotlin.Metadata *;
+}
+
+# --- Errores de validación del registro ---
+-keep class com.finedu.app.auth.register.ValidationErrorResponse { *; }
+-keep class com.finedu.app.auth.register.ValidationError { *; }
+-keep class com.finedu.app.auth.register.FieldError { *; }
+
