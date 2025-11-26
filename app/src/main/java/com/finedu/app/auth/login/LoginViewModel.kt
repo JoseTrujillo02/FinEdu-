@@ -25,14 +25,6 @@ class LoginViewModel @Inject constructor(
     val state: StateFlow<LoginState> = _state.asStateFlow()
 
     fun login(email: String, password: String) {
-        // Limpiar errores previos
-        _state.value = _state.value.copy(
-            error = null,
-            emailError = null,
-            passwordError = null
-        )
-
-        // Validación básica
         if (email.isBlank() || password.isBlank()) {
             _state.value = _state.value.copy(
                 error = "Por favor completa todos los campos"
@@ -41,7 +33,7 @@ class LoginViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true)
+            _state.value = _state.value.copy(isLoading = true, error = null)
 
             try {
                 val request = LoginRequest(email = email, password = password)
@@ -51,6 +43,7 @@ class LoginViewModel @Inject constructor(
                     val loginResponse = response.body()
 
                     if (loginResponse?.user != null && loginResponse.tokens != null && loginResponse.error == null) {
+
                         val user = loginResponse.user
                         val tokens = loginResponse.tokens
 
@@ -68,6 +61,7 @@ class LoginViewModel @Inject constructor(
                             isSuccess = true
                         )
                         Log.d("LoginViewModel", "✅ Login exitoso y sesión guardada")
+
                     } else {
                         _state.value = _state.value.copy(
                             isLoading = false,
@@ -76,7 +70,28 @@ class LoginViewModel @Inject constructor(
                         Log.e("LoginViewModel", "❌ Error: ${loginResponse?.error}")
                     }
                 } else {
-                    handleErrorResponse(response.errorBody()?.string(), response.code())
+                    val errorBody = response.errorBody()?.string()
+                    var errorMessage = "Error: ${response.code()}"
+                    if (errorBody != null) {
+                        try {
+                            val gson = Gson()
+                            val errorResponse = gson.fromJson(errorBody, ErrorResponse::class.java)
+                            errorMessage = when (errorResponse.error?.detail) {
+                                "INVALID_LOGIN_CREDENTIALS" -> "Email o contraseña incorrectos."
+                                "EMAIL_NOT_FOUND" -> "Este email no está registrado."
+                                "INAVLID_PASSWORD" -> "Contraseña Erronea."
+                                else -> errorResponse.error?.message ?: "Error desconocido."
+                            }
+                        } catch (e: Exception) {
+                            Log.e("LoginViewModel", "❌ No se pudo parsear el JSON de error", e)
+                            errorMessage = "Error de respuesta del servidor."
+                        }
+                        _state.value = _state.value.copy(
+                            isLoading = false,
+                            error = errorMessage
+                        )
+                        Log.e("LoginViewModel", "❌ Error HTTP: ${response.code()} - $errorMessage")
+                    }
                 }
             } catch (e: Exception) {
                 val errorMessage = when {
@@ -97,69 +112,7 @@ class LoginViewModel @Inject constructor(
         }
     }
 
-    private fun handleErrorResponse(errorBody: String?, statusCode: Int) {
-        var generalError: String? = null
-        var emailError: String? = null
-        var passwordError: String? = null
-
-        if (errorBody != null) {
-            try {
-                val gson = Gson()
-                val errorResponse = gson.fromJson(errorBody, ErrorResponseWithValidation::class.java)
-
-                // Manejar errores de validación por campo
-                if (errorResponse.error?.code == "VALIDATION_ERROR" &&
-                    !errorResponse.error.fields.isNullOrEmpty()) {
-
-                    errorResponse.error.fields.forEach { fieldError ->
-                        when (fieldError.field) {
-                            "email" -> emailError = fieldError.message
-                            "password" -> passwordError = fieldError.message
-                            else -> generalError = fieldError.message
-                        }
-                    }
-
-                    Log.e("LoginViewModel", "❌ Errores de validación: email=$emailError, password=$passwordError")
-                } else {
-                    // Manejar otros tipos de errores
-                    generalError = when (errorResponse.error?.message ?: errorResponse.error?.code) {
-                        "INVALID_LOGIN_CREDENTIALS" -> "Email o contraseña incorrectos."
-                        "EMAIL_NOT_FOUND" -> "Este email no está registrado."
-                        "INVALID_PASSWORD" -> "La contraseña es incorrecta."
-                        "USER_DISABLED" -> "Esta cuenta ha sido deshabilitada."
-                        "TOO_MANY_ATTEMPTS_TRY_LATER" -> "Demasiados intentos. Intenta más tarde."
-                        else -> errorResponse.error?.message ?: "Error desconocido."
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("LoginViewModel", "❌ No se pudo parsear el JSON de error", e)
-                generalError = "Error de respuesta del servidor."
-            }
-        } else {
-            generalError = "Error: $statusCode"
-        }
-
-        _state.value = _state.value.copy(
-            isLoading = false,
-            error = generalError,
-            emailError = emailError,
-            passwordError = passwordError
-        )
-        Log.e("LoginViewModel", "❌ Error HTTP: $statusCode - General: $generalError")
-    }
-
     fun clearError() {
-        _state.value = _state.value.copy(
-            error = null,
-            emailError = null,
-            passwordError = null
-        )
-    }
-
-    fun clearFieldError(field: String) {
-        when (field) {
-            "email" -> _state.value = _state.value.copy(emailError = null)
-            "password" -> _state.value = _state.value.copy(passwordError = null)
-        }
+        _state.value = _state.value.copy(error = null)
     }
 }

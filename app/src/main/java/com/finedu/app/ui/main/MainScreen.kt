@@ -4,12 +4,10 @@ package com.finedu.app.ui
 
 import android.os.Build
 import androidx.annotation.RequiresApi
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -21,12 +19,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
@@ -40,69 +35,6 @@ import com.finedu.app.ui.dictation.VoiceDictationScreen
 import com.finedu.app.ui.theme.SetStatusBarIcons
 import com.finedu.app.network.SessionExpiredManager
 import kotlinx.coroutines.launch
-
-// Enums para filtros
-enum class TransactionFilter {
-    ALL, INCOME, EXPENSE
-}
-
-enum class TransactionSort {
-    DATE_DESC, DATE_ASC, AMOUNT_DESC, AMOUNT_ASC, CATEGORY
-}
-
-// =========================
-//  Colores adaptativos
-// =========================
-@Composable
-private fun getColorScheme(): AppColors {
-    val isDark = isSystemInDarkTheme()
-    return if (isDark) {
-        AppColors(
-            primary = Color(0xFF66BB6A),
-            primaryDark = Color(0xFF4CAF50),
-            primaryLight = Color(0xFF81C784),
-            expense = Color(0xFFFF8A65),
-            textPrimary = Color(0xFFE8EAED),
-            textSecondary = Color(0xFFB0B8C1),
-            textTertiary = Color(0xFF8A9199),
-            background = Color(0xFF121212),
-            surface = Color(0xFF1E1E1E),
-            surfaceVariant = Color(0xFF2A2A2A),
-            topBarStart = Color(0xFF263238),
-            topBarEnd = Color(0xFF37474F)
-        )
-    } else {
-        AppColors(
-            primary = Color(0xFF4CAF50),
-            primaryDark = Color(0xFF388E3C),
-            primaryLight = Color(0xFF81C784),
-            expense = Color(0xFFFF7043),
-            textPrimary = Color(0xFF1A2332),
-            textSecondary = Color(0xFF3A4F66),
-            textTertiary = Color(0xFF94A3B8),
-            background = Color(0xFFF5F7FA),
-            surface = Color(0xFFFFFFFF),
-            surfaceVariant = Color(0xFFFAFAFA),
-            topBarStart = Color(0xFF2C3E50),
-            topBarEnd = Color(0xFF4A5568)
-        )
-    }
-}
-
-data class AppColors(
-    val primary: Color,
-    val primaryDark: Color,
-    val primaryLight: Color,
-    val expense: Color,
-    val textPrimary: Color,
-    val textSecondary: Color,
-    val textTertiary: Color,
-    val background: Color,
-    val surface: Color,
-    val surfaceVariant: Color,
-    val topBarStart: Color,
-    val topBarEnd: Color
-)
 
 sealed class MainScreenDestinations(val route: String) {
     object Home : MainScreenDestinations("home_tab")
@@ -314,124 +246,6 @@ fun MainTopBar(
     }
 }
 
-// DIÁLOGO: Capital No Configurado
-@Composable
-fun CapitalRequiredDialog(
-    colors: AppColors,
-    onDismiss: () -> Unit
-) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            dismissOnBackPress = true,
-            dismissOnClickOutside = true
-        )
-    ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = colors.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .background(
-                            color = Color(0xFFFF9800).copy(alpha = 0.15f),
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Outlined.Lock,
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp),
-                        tint = Color(0xFFFF9800)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Text(
-                    text = "Capital No Configurado",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.textPrimary
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "Para poder registrar transacciones, primero debes configurar tu capital inicial en tu perfil de usuario.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = colors.textSecondary,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    lineHeight = 24.sp
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFFFF9800).copy(alpha = 0.08f)
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Outlined.Info,
-                            contentDescription = null,
-                            tint = Color(0xFFFF9800),
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            "Ve a tu perfil y configura tu capital inicial antes de comenzar a registrar ingresos o gastos.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = colors.textPrimary,
-                            fontSize = 13.sp,
-                            lineHeight = 18.sp
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Button(
-                    onClick = onDismiss,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFF9800)
-                    )
-                ) {
-                    Text(
-                        "Entendido",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-        }
-    }
-}
-
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun HomeScreenDashboard(
@@ -446,7 +260,7 @@ fun HomeScreenDashboard(
     var currentSort by remember { mutableStateOf(TransactionSort.DATE_DESC) }
     var searchQuery by remember { mutableStateOf("") }
     var showCapitalDialog by remember { mutableStateOf(false) }
-    var selectedCategory by remember { mutableStateOf<String?>(null) } // ✅ NUEVO
+    var selectedCategory by remember { mutableStateOf<String?>(null) }
 
     val hasCapital = state.capitalAmount > 0.0
 
@@ -455,7 +269,7 @@ fun HomeScreenDashboard(
         currentFilter,
         currentSort,
         searchQuery,
-        selectedCategory // ✅ NUEVO
+        selectedCategory
     ) {
         var transactions = when (currentFilter) {
             TransactionFilter.ALL -> state.transactions
@@ -463,7 +277,6 @@ fun HomeScreenDashboard(
             TransactionFilter.EXPENSE -> state.transactions.filter { it.type == "expense" }
         }
 
-        // ✅ NUEVO: Filtrar por categoría seleccionada
         if (selectedCategory != null) {
             transactions = transactions.filter { it.category == selectedCategory }
         }
@@ -501,6 +314,7 @@ fun HomeScreenDashboard(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Tarjeta de Salud Financiera
         item {
             SaludFinancieraCard(
                 colors,
@@ -509,28 +323,7 @@ fun HomeScreenDashboard(
             )
         }
 
-        item {
-            if (showTrends) {
-                TendenciasCard(colors, state.transactions)
-            } else {
-                EstadisticasCard(
-                    colors = colors,
-                    ingresos = state.capitalAmount,
-                    egresos = state.totalEgresos,
-                    transactions = state.transactions
-                )
-            }
-        }
-
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                ToggleViewButton(colors, showTrends) { showTrends = !showTrends }
-            }
-        }
-
+        // Botón para agregar transacción
         item {
             AddTransactionCard(
                 colors = colors,
@@ -544,6 +337,7 @@ fun HomeScreenDashboard(
             )
         }
 
+        // Título de Actividad Reciente
         item {
             Row(
                 modifier = Modifier
@@ -567,7 +361,7 @@ fun HomeScreenDashboard(
             }
         }
 
-        // FILTROS Y BÚSQUEDA
+        // Filtros y búsqueda
         item {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -586,13 +380,11 @@ fun HomeScreenDashboard(
                     currentSort = currentSort,
                     onFilterChange = {
                         currentFilter = it
-                        // Limpiar categoría cuando se cambia el filtro principal
                         selectedCategory = null
                     },
                     onSortChange = { currentSort = it }
                 )
 
-                // ✅ NUEVO: Chips de categorías dinámicas
                 if (state.availableCategories.isNotEmpty()) {
                     CategoryFilterRow(
                         colors = colors,
@@ -606,6 +398,7 @@ fun HomeScreenDashboard(
             }
         }
 
+        // Lista de transacciones
         item {
             ActivityCardContainer(
                 colors,
@@ -613,352 +406,27 @@ fun HomeScreenDashboard(
                 onDeleteTransaction = onDeleteTransaction
             )
         }
-    }
-}
 
-// BARRA DE BÚSQUEDA
-@Composable
-fun SearchBar(
-    colors: AppColors,
-    query: String,
-    onQueryChange: (String) -> Unit,
-    onClear: () -> Unit
-) {
-    OutlinedTextField(
-        value = query,
-        onValueChange = onQueryChange,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp),
-        placeholder = {
-            Text(
-                "Buscar por categoría, descripción o monto...",
-                color = colors.textTertiary,
-                fontSize = 14.sp
-            )
-        },
-        leadingIcon = {
-            Icon(
-                Icons.Outlined.Search,
-                contentDescription = "Buscar",
-                tint = colors.textTertiary
-            )
-        },
-        trailingIcon = {
-            if (query.isNotEmpty()) {
-                IconButton(onClick = onClear) {
-                    Icon(
-                        Icons.Outlined.Close,
-                        contentDescription = "Limpiar",
-                        tint = colors.textTertiary
-                    )
-                }
-            }
-        },
-        singleLine = true,
-        shape = RoundedCornerShape(16.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedContainerColor = colors.surface,
-            unfocusedContainerColor = colors.surface,
-            focusedBorderColor = colors.primary.copy(alpha = 0.5f),
-            unfocusedBorderColor = colors.textTertiary.copy(alpha = 0.2f),
-            focusedTextColor = colors.textPrimary,
-            unfocusedTextColor = colors.textPrimary,
-            cursorColor = colors.primary
-        )
-    )
-}
-
-// FILTROS Y ORDENAMIENTO
-@Composable
-fun FilterAndSortRow(
-    colors: AppColors,
-    currentFilter: TransactionFilter,
-    currentSort: TransactionSort,
-    onFilterChange: (TransactionFilter) -> Unit,
-    onSortChange: (TransactionSort) -> Unit
-) {
-    var showSortMenu by remember { mutableStateOf(false) }
-
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            item {
-                FilterChip(
+        // Gráficas al final
+        item {
+            if (showTrends) {
+                TendenciasCard(colors, state.transactions)
+            } else {
+                EstadisticasCard(
                     colors = colors,
-                    label = "Todas",
-                    icon = Icons.Outlined.List,
-                    isSelected = currentFilter == TransactionFilter.ALL,
-                    onClick = { onFilterChange(TransactionFilter.ALL) }
-                )
-            }
-            item {
-                FilterChip(
-                    colors = colors,
-                    label = "Ingresos",
-                    icon = Icons.Outlined.ArrowUpward,
-                    isSelected = currentFilter == TransactionFilter.INCOME,
-                    onClick = { onFilterChange(TransactionFilter.INCOME) },
-                    chipColor = colors.primary
-                )
-            }
-            item {
-                FilterChip(
-                    colors = colors,
-                    label = "Egresos",
-                    icon = Icons.Outlined.ArrowDownward,
-                    isSelected = currentFilter == TransactionFilter.EXPENSE,
-                    onClick = { onFilterChange(TransactionFilter.EXPENSE) },
-                    chipColor = colors.expense
+                    ingresos = state.capitalAmount,
+                    egresos = state.totalEgresos,
+                    transactions = state.transactions
                 )
             }
         }
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Ordenar por:",
-                style = MaterialTheme.typography.bodyMedium,
-                color = colors.textSecondary,
-                fontWeight = FontWeight.Medium
-            )
-
-            Box {
-                OutlinedButton(
-                    onClick = { showSortMenu = true },
-                    modifier = Modifier.height(36.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.3f)),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = colors.primary.copy(alpha = 0.05f),
-                        contentColor = colors.primary
-                    )
-                ) {
-                    Text(
-                        text = when (currentSort) {
-                            TransactionSort.DATE_DESC -> "Más recientes"
-                            TransactionSort.DATE_ASC -> "Más antiguos"
-                            TransactionSort.AMOUNT_DESC -> "Mayor monto"
-                            TransactionSort.AMOUNT_ASC -> "Menor monto"
-                            TransactionSort.CATEGORY -> "Categoría"
-                        },
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Icon(
-                        Icons.Outlined.ArrowDropDown,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
-                DropdownMenu(
-                    expanded = showSortMenu,
-                    onDismissRequest = { showSortMenu = false },
-                    modifier = Modifier.background(colors.surface)
-                ) {
-                    SortMenuItem(
-                        colors,
-                        "Más recientes",
-                        Icons.Outlined.ArrowDownward,
-                        currentSort == TransactionSort.DATE_DESC
-                    ) {
-                        onSortChange(TransactionSort.DATE_DESC)
-                        showSortMenu = false
-                    }
-                    SortMenuItem(
-                        colors,
-                        "Más antiguos",
-                        Icons.Outlined.ArrowUpward,
-                        currentSort == TransactionSort.DATE_ASC
-                    ) {
-                        onSortChange(TransactionSort.DATE_ASC)
-                        showSortMenu = false
-                    }
-                    SortMenuItem(
-                        colors,
-                        "Mayor monto",
-                        Icons.Outlined.TrendingUp,
-                        currentSort == TransactionSort.AMOUNT_DESC
-                    ) {
-                        onSortChange(TransactionSort.AMOUNT_DESC)
-                        showSortMenu = false
-                    }
-                    SortMenuItem(
-                        colors,
-                        "Menor monto",
-                        Icons.Outlined.TrendingDown,
-                        currentSort == TransactionSort.AMOUNT_ASC
-                    ) {
-                        onSortChange(TransactionSort.AMOUNT_ASC)
-                        showSortMenu = false
-                    }
-                    SortMenuItem(
-                        colors,
-                        "Categoría",
-                        Icons.Outlined.Category,
-                        currentSort == TransactionSort.CATEGORY
-                    ) {
-                        onSortChange(TransactionSort.CATEGORY)
-                        showSortMenu = false
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun SortMenuItem(
-    colors: AppColors,
-    label: String,
-    icon: ImageVector,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    DropdownMenuItem(
-        text = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = if (isSelected) colors.primary else colors.textSecondary
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    label,
-                    color = if (isSelected) colors.primary else colors.textPrimary,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                )
-            }
-        },
-        onClick = onClick
-    )
-}
-
-@Composable
-fun FilterChip(
-    colors: AppColors,
-    label: String,
-    icon: ImageVector,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    chipColor: Color = colors.primary
-) {
-    FilterChip(
-        selected = isSelected,
-        onClick = onClick,
-        label = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(label, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-            }
-        },
-        colors = FilterChipDefaults.filterChipColors(
-            containerColor = if (isSelected) chipColor.copy(alpha = 0.15f) else colors.surfaceVariant,
-            labelColor = if (isSelected) chipColor else colors.textSecondary,
-            iconColor = if (isSelected) chipColor else colors.textSecondary,
-            selectedContainerColor = chipColor.copy(alpha = 0.15f),
-            selectedLabelColor = chipColor,
-            selectedLeadingIconColor = chipColor
-        ),
-        border = if (isSelected) {
-            BorderStroke(1.5.dp, chipColor.copy(alpha = 0.5f))
-        } else {
-            BorderStroke(1.dp, colors.textTertiary.copy(alpha = 0.2f))
-        }
-    )
-}
-
-// ✅ NUEVO COMPONENTE: Fila de filtros por categoría
-@Composable
-fun CategoryFilterRow(
-    colors: AppColors,
-    categories: List<String>,
-    selectedCategory: String?,
-    onCategorySelected: (String) -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Filtrar por categoría:",
-                style = MaterialTheme.typography.bodyMedium,
-                color = colors.textSecondary,
-                fontWeight = FontWeight.Medium
-            )
-
-            if (selectedCategory != null) {
-                TextButton(
-                    onClick = { onCategorySelected(selectedCategory) },
-                    modifier = Modifier.height(32.dp)
-                ) {
-                    Icon(
-                        Icons.Outlined.Close,
-                        contentDescription = "Limpiar filtro",
-                        modifier = Modifier.size(16.dp),
-                        tint = colors.textTertiary
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        "Limpiar",
-                        fontSize = 13.sp,
-                        color = colors.textTertiary
-                    )
-                }
-            }
-        }
-
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            items(categories.size) { index ->
-                val category = categories[index]
-                val isSelected = selectedCategory == category
-
-                // Determinar icono según categoría
-                val categoryIcon = when (category.lowercase()) {
-                    "comida", "alimentos" -> Icons.Outlined.Restaurant
-                    "transporte" -> Icons.Outlined.DirectionsCar
-                    "entretenimiento" -> Icons.Outlined.Theaters
-                    "salud" -> Icons.Outlined.LocalHospital
-                    "educación" -> Icons.Outlined.School
-                    "ropa" -> Icons.Outlined.Checkroom
-                    "servicios" -> Icons.Outlined.Build
-                    "hogar" -> Icons.Outlined.Home
-                    else -> Icons.Outlined.Category
-                }
-
-                FilterChip(
-                    colors = colors,
-                    label = category,
-                    icon = categoryIcon,
-                    isSelected = isSelected,
-                    onClick = { onCategorySelected(category) },
-                    chipColor = Color(0xFF9C27B0) // Color morado para categorías
-                )
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                ToggleViewButton(colors, showTrends) { showTrends = !showTrends }
             }
         }
     }

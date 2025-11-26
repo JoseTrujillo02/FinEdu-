@@ -9,7 +9,6 @@ import com.finedu.app.auth.data.ChangePasswordRequest
 import com.finedu.app.auth.data.DeleteAccountRequest
 import com.finedu.app.auth.data.ErrorResponse
 import com.finedu.app.data.SessionRepository
-import com.finedu.app.data.UserSessionData
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel

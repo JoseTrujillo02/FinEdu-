@@ -119,61 +119,117 @@ fun TransactionsList(
 @Composable
 fun SaludFinancieraCard(colors: AppColors, ingresos: String, egresos: String) {
     Card(
-        modifier = Modifier.fillMaxWidth().shadow(6.dp, RoundedCornerShape(24.dp)),
-        shape = RoundedCornerShape(24.dp),
+        modifier = Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(20.dp)),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = colors.surface)
     ) {
-        Column(Modifier.padding(24.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier
-                        .size(44.dp)
-                        .background(colors.primary.copy(alpha = 0.15f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Outlined.TrendingUp,
-                        null,
-                        tint = colors.primary,
-                        modifier = Modifier.size(26.dp)
+        Column(Modifier.padding(20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier
+                            .size(40.dp)
+                            .background(colors.primary.copy(alpha = 0.15f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Outlined.TrendingUp,
+                            null,
+                            tint = colors.primary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        "Tu Salud Financiera",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.textPrimary
                     )
                 }
-                Spacer(Modifier.width(12.dp))
-                Text(
-                    "Tu Salud Financiera",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.textPrimary
-                )
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(16.dp))
 
-            Row(Modifier.fillMaxWidth(), Arrangement.SpaceEvenly) {
-                FinancialItem(
-                    colors,
-                    Icons.Outlined.ArrowUpward,
-                    "Ingresos",
-                    ingresos,
-                    colors.primary,
-                    Modifier.weight(1f)
+            // Diseño compacto y elegante
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Capital disponible
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Outlined.ArrowUpward,
+                            null,
+                            tint = colors.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            "Capital",
+                            fontSize = 13.sp,
+                            color = colors.textSecondary,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        ingresos,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.primary
+                    )
+                }
+
+                // Divisor vertical
+                Box(
+                    modifier = Modifier
+                        .width(1.dp)
+                        .height(50.dp)
+                        .background(colors.textTertiary.copy(alpha = 0.2f))
                 )
-                Spacer(Modifier.width(16.dp))
-                FinancialItem(
-                    colors,
-                    Icons.Outlined.ArrowDownward,
-                    "Egresos",
-                    egresos,
-                    colors.expense,
-                    Modifier.weight(1f)
-                )
+
+                // Egresos
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.End
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Outlined.ArrowDownward,
+                            null,
+                            tint = colors.expense,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            "Egresos",
+                            fontSize = 13.sp,
+                            color = colors.textSecondary,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        egresos,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.expense
+                    )
+                }
             }
         }
     }
 }
 
 // =============================================
-//   ESTADÍSTICAS (Balance del Mes) — CON DATOS REALES POR SEMANA
+//   ESTADÍSTICAS (Balance del Mes) – CON DATOS REALES POR SEMANA
 // =============================================
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -541,7 +597,7 @@ fun TrendItem(colors: AppColors, category: String, amount: Double, percentage: I
 }
 
 // =============================================
-//     GRÁFICA DUAL — DATOS REALES POR SEMANA
+//     GRÁFICA DUAL – DATOS REALES POR SEMANA
 // =============================================
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable

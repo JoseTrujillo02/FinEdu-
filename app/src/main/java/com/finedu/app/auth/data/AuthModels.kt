@@ -92,3 +92,6 @@ data class DeleteAccountRequest(
     @SerializedName("confirm") val confirm: String = "" // <-- ¡CORREGIDO!
 )
 
+data class ChangePasswordRequest(
+    @SerializedName("newPassword") val newPassword: String
+)

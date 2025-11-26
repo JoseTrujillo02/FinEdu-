@@ -17,16 +17,14 @@ import com.finedu.app.auth.login.LoginScreen
 import com.finedu.app.auth.login.LoginViewModel
 import com.finedu.app.auth.register.RegisterScreen
 import com.finedu.app.auth.register.RegisterViewModel
-import com.finedu.app.auth.changepassword.ChangePasswordScreen
-import com.finedu.app.auth.changepassword.ChangePasswordViewModel
 import com.finedu.app.data.SessionRepository
 import com.finedu.app.data.UserSessionData
 import com.finedu.app.ui.MainScreen
 import com.finedu.app.ui.NotificationsScreen
 import com.finedu.app.ui.TermsScreen
+import com.finedu.app.ui.dictation.VoiceDictationScreen
 import com.finedu.app.ui.profile.ProfileScreen
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -34,7 +32,6 @@ import javax.inject.Inject
 class SessionViewModel @Inject constructor(
     val repository: SessionRepository
 ) : ViewModel()
-
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun AppNavegacion() {
@@ -42,7 +39,6 @@ fun AppNavegacion() {
     val scope = rememberCoroutineScope()
     val sessionViewModel: SessionViewModel = hiltViewModel()
     val sessionRepository = sessionViewModel.repository
-
     NavHost(
         navController = navController,
         startDestination = AppRutas.SPLASH_SCREEN
@@ -79,11 +75,11 @@ fun AppNavegacion() {
             LoginScreen(
                 onLoginClick = { email, password -> viewModel.login(email, password) },
                 onRegisterClick = { navController.navigate(AppRutas.REGISTER_SCREEN) },
-
                 state = state,
-                onDismissError = { viewModel.clearError() },
+                onDismissError = { viewModel.clearError() }
             )
         }
+
 
         composable(AppRutas.REGISTER_SCREEN) {
             val viewModel: RegisterViewModel = hiltViewModel()
@@ -114,40 +110,6 @@ fun AppNavegacion() {
             )
         }
 
-        composable(AppRutas.CHANGE_PASSWORD_SCREEN) {
-            val viewModel: ChangePasswordViewModel = hiltViewModel()
-            val state by viewModel.state.collectAsState()
-
-            // Navegar de vuelta cuando el cambio sea exitoso
-            LaunchedEffect(state.isSuccess) {
-                if (state.isSuccess) {
-                    delay(2000) // Esperar para que vea el mensaje de éxito
-                    navController.popBackStack()
-                }
-            }
-
-            // Manejar sesión expirada (error 401)
-            LaunchedEffect(state.error) {
-                if (state.error?.contains("Sesión expirada") == true ||
-                    state.error?.contains("Sesión no válida") == true) {
-                    delay(2000)
-                    navController.navigate(AppRutas.LOGIN_SCREEN) {
-                        popUpTo(0) { inclusive = true }
-                    }
-                }
-            }
-
-            ChangePasswordScreen(
-                onChangePasswordClick = { newPassword ->
-                    viewModel.changePassword(newPassword)
-                },
-                onBackClick = { navController.popBackStack() },
-                state = state,
-                onDismissError = { viewModel.clearError() },
-                onClearPasswordError = { viewModel.clearPasswordError() }
-            )
-        }
-
         composable(AppRutas.HOME_SCREEN) {
             MainScreen(
                 mainNavController = navController,
@@ -165,13 +127,14 @@ fun AppNavegacion() {
         composable(AppRutas.NOTIFICATIONS_SCREEN) {
             NotificationsScreen(navController = navController)
         }
-
         composable(AppRutas.PROFILE_SCREEN) {
             ProfileScreen(
                 navController = navController,
                 onLogoutClick = {
                     scope.launch {
-                        sessionRepository.clearSession()
+                        sessionRepository.clearSession() // Llama a la suspend fun
+
+                        // Navega al Login
                         navController.navigate(AppRutas.LOGIN_SCREEN) {
                             popUpTo(AppRutas.HOME_SCREEN) { inclusive = true }
                         }
@@ -179,7 +142,6 @@ fun AppNavegacion() {
                 }
             )
         }
-
         composable(AppRutas.TERMS_SCREEN) {
             TermsScreen(navController = navController)
         }
