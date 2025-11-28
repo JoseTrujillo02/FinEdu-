@@ -35,6 +35,7 @@ import com.finedu.app.ui.dictation.VoiceDictationScreen
 import com.finedu.app.ui.theme.SetStatusBarIcons
 import com.finedu.app.network.SessionExpiredManager
 import kotlinx.coroutines.launch
+import com.datadog.android.rum.GlobalRumMonitor   // 👈 Datadog RUM para medir tiempo en Home
 
 sealed class MainScreenDestinations(val route: String) {
     object Home : MainScreenDestinations("home_tab")
@@ -255,6 +256,21 @@ fun HomeScreenDashboard(
     onDeleteTransaction: (String) -> Unit,
     onNavigateToProfile: () -> Unit
 ) {
+    // 🔹 Datadog RUM: medir tiempo que el usuario pasa en Home
+    DisposableEffect(Unit) {
+        val viewKey = "home_dashboard_view"
+        val viewName = "Home - Dashboard"
+
+        GlobalRumMonitor.get().startView(
+            viewKey,   // key
+            viewName   // nombre visible en Datadog
+        )
+
+        onDispose {
+            GlobalRumMonitor.get().stopView(viewKey)
+        }
+    }
+
     var showTrends by remember { mutableStateOf(false) }
     var currentFilter by remember { mutableStateOf(TransactionFilter.ALL) }
     var currentSort by remember { mutableStateOf(TransactionSort.DATE_DESC) }

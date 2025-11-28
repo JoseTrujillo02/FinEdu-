@@ -6,21 +6,25 @@ import androidx.lifecycle.viewModelScope
 import com.finedu.app.auth.data.AuthApiService
 import com.finedu.app.auth.data.ErrorResponse
 import com.finedu.app.auth.data.LoginRequest
+import com.finedu.app.data.SessionRepository
+import com.finedu.app.data.UserSessionData
+import com.google.gson.Gson
+import com.datadog.android.Datadog
+import com.datadog.android.rum.GlobalRumMonitor
+import com.datadog.android.rum.RumActionType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import com.finedu.app.data.SessionRepository
-import com.finedu.app.data.UserSessionData
-import com.google.gson.Gson
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val authApiService: AuthApiService,
     private val sessionRepository: SessionRepository
 ) : ViewModel() {
+
     private val _state = MutableStateFlow(LoginState())
     val state: StateFlow<LoginState> = _state.asStateFlow()
 
@@ -42,7 +46,10 @@ class LoginViewModel @Inject constructor(
                 if (response.isSuccessful) {
                     val loginResponse = response.body()
 
-                    if (loginResponse?.user != null && loginResponse.tokens != null && loginResponse.error == null) {
+                    if (loginResponse?.user != null &&
+                        loginResponse.tokens != null &&
+                        loginResponse.error == null
+                    ) {
 
                         val user = loginResponse.user
                         val tokens = loginResponse.tokens
@@ -55,7 +62,28 @@ class LoginViewModel @Inject constructor(
                             name = user.displayName
                         )
 
+                        // 1) Guardar sesión localmente (como ya hacías)
                         sessionRepository.saveSession(sessionData)
+
+                        // 2) Identificar al usuario en Datadog (RUM + Logs)
+                        Datadog.setUserInfo(
+                            id = user.uid ?: "",
+                            name = user.displayName ?: "",
+                            email = user.email ?: ""
+                        )
+
+                        // 3) Enviar acción RUM de login exitoso
+                        GlobalRumMonitor.get().addAction(
+                            RumActionType.CUSTOM,
+                            "login_success",
+                            mapOf(
+                                "method" to "email_password",
+                                "user_id" to (user.uid ?: ""),
+                                "has_refresh_token" to (tokens.refreshToken?.isNotBlank() == true)
+                            )
+                        )
+
+                        // 4) Actualizar estado de UI
                         _state.value = _state.value.copy(
                             isLoading = false,
                             isSuccess = true
@@ -72,25 +100,44 @@ class LoginViewModel @Inject constructor(
                 } else {
                     val errorBody = response.errorBody()?.string()
                     var errorMessage = "Error: ${response.code()}"
+
                     if (errorBody != null) {
                         try {
                             val gson = Gson()
-                            val errorResponse = gson.fromJson(errorBody, ErrorResponse::class.java)
+                            val errorResponse =
+                                gson.fromJson(errorBody, ErrorResponse::class.java)
+
                             errorMessage = when (errorResponse.error?.detail) {
-                                "INVALID_LOGIN_CREDENTIALS" -> "Email o contraseña incorrectos."
+                                "EMAIL_REQUIRED" -> "El correo es obligatorio."
+                                "INVALID_EMAIL_FORMAT" -> "El correo no es válido."
+                                "PASSWORD_REQUIRED" -> "La contraseña es obligatoria."
+                                "PASSWORD_TOO_SHORT" -> "La contraseña debe tener al menos 6 caracteres."
+
                                 "EMAIL_NOT_FOUND" -> "Este email no está registrado."
-                                "INAVLID_PASSWORD" -> "Contraseña Erronea."
+                                "INVALID_PASSWORD" -> "Contraseña incorrecta."
+                                "INVALID_LOGIN_CREDENTIALS" -> "Email o contraseña incorrectos."
+                                "USER_DISABLED" -> "Esta cuenta ha sido deshabilitada."
+
                                 else -> errorResponse.error?.message ?: "Error desconocido."
                             }
+
                         } catch (e: Exception) {
-                            Log.e("LoginViewModel", "❌ No se pudo parsear el JSON de error", e)
+                            Log.e(
+                                "LoginViewModel",
+                                "❌ No se pudo parsear el JSON de error",
+                                e
+                            )
                             errorMessage = "Error de respuesta del servidor."
                         }
+
                         _state.value = _state.value.copy(
                             isLoading = false,
                             error = errorMessage
                         )
-                        Log.e("LoginViewModel", "❌ Error HTTP: ${response.code()} - $errorMessage")
+                        Log.e(
+                            "LoginViewModel",
+                            "❌ Error HTTP: ${response.code()} - $errorMessage"
+                        )
                     }
                 }
             } catch (e: Exception) {

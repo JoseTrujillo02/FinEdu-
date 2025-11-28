@@ -38,6 +38,10 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+// 👇 Datadog RUM para registrar borrados de transacciones
+import com.datadog.android.rum.GlobalRumMonitor
+import com.datadog.android.rum.RumActionType
+
 // =========================
 //  FinancialItem
 // =========================
@@ -63,7 +67,12 @@ fun FinancialItem(
         ) {
             Icon(icon, label, tint = color, modifier = Modifier.size(28.dp))
             Spacer(modifier = Modifier.height(8.dp))
-            Text(label, fontSize = 13.sp, color = colors.textSecondary, fontWeight = FontWeight.Medium)
+            Text(
+                label,
+                fontSize = 13.sp,
+                color = colors.textSecondary,
+                fontWeight = FontWeight.Medium
+            )
             Spacer(modifier = Modifier.height(4.dp))
             Text(amount, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = color)
         }
@@ -285,7 +294,28 @@ fun TransactionItemRow(colors: AppColors, tx: TransactionItem, onDelete: () -> U
                     fontWeight = FontWeight.Bold,
                     fontSize = 17.sp
                 )
-                IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
+
+                // 🔹 Aquí instrumentamos el borrado de transacciones con Datadog RUM
+                IconButton(
+                    onClick = {
+                        GlobalRumMonitor.get().addAction(
+                            RumActionType.TAP,
+                            "delete_transaction",
+                            mapOf(
+                                "transaction.id" to tx.id,
+                                "transaction.type" to tx.type,                 // "income" o "expense"
+                                "transaction.category" to tx.category,
+                                "transaction.amount" to tx.amount,
+                                "transaction.isExpense" to (tx.type == "expense"),
+                                "transaction.source" to "home_activity_list"
+                            )
+                        )
+
+                        // Lógica original: borrar la transacción
+                        onDelete()
+                    },
+                    modifier = Modifier.size(36.dp)
+                ) {
                     Icon(
                         Icons.Outlined.Delete,
                         "Eliminar",

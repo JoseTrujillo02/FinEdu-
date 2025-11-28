@@ -1,6 +1,8 @@
 [versions]
 agp = "8.13.0"
+ddSdkAndroidRum = "3.3.0"
 kotlin = "2.0.21"
+
 # AndroidX base
 coreKtx = "1.13.1"
 lifecycleRuntimeKtx = "2.8.6"
@@ -42,6 +44,9 @@ hilt                 = { id = "com.google.dagger.hilt.android", version.ref = "h
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+dd-sdk-android-logs = { module = "com.datadoghq:dd-sdk-android-logs", version.ref = "ddSdkAndroidRum" }
+dd-sdk-android-okhttp = { module = "com.datadoghq:dd-sdk-android-okhttp", version.ref = "ddSdkAndroidRum" }
+dd-sdk-android-rum = { module = "com.datadoghq:dd-sdk-android-rum", version.ref = "ddSdkAndroidRum" }
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }
 androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
@@ -93,3 +98,6 @@ androidx-compose-ui-geometry = { group = "androidx.compose.ui", name = "ui-geome
 androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics", version.ref = "uiGraphics" }
 androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
 androidx-compose-ui-text = { group = "androidx.compose.ui", name = "ui-text", version.ref = "uiText" }
+
+
+

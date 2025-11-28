@@ -48,6 +48,11 @@ import com.finedu.app.ui.dictation.UiEvent
 import com.finedu.app.ui.dictation.VoiceDictationViewModel
 import kotlinx.coroutines.delay
 
+// 🔹 Datadog RUM
+import com.datadog.android.rum.GlobalRumMonitor
+import com.datadog.android.rum.RumActionType
+import com.datadog.android.rum.RumErrorSource
+
 // --- MODELOS DE UI LOCALES ---
 data class AlertState(
     val show: Boolean = false,
@@ -141,10 +146,45 @@ fun VoiceDictationScreen(
                 val newText = matches[0]
                 recognizedText = newText
                 if (newText.isNotBlank()) {
+
+                    // 🔹 Datadog: dictado exitoso
+                    GlobalRumMonitor.get().addAction(
+                        RumActionType.CUSTOM,
+                        "voice_dictation_success",
+                        mapOf(
+                            "feature" to "voice_dictation",
+                            "screen" to "VoiceDictationScreen",
+                            "recognized_length" to newText.length
+                        )
+                    )
+
                     viewModel.sendMessage(newText)
                 }
+            } else {
+                // 🔹 Datadog: hubo audio pero no se obtuvieron resultados
+                GlobalRumMonitor.get().addError(
+                    "voice_dictation_no_results",
+                    RumErrorSource.SOURCE,
+                    null,
+                    mapOf(
+                        "feature" to "voice_dictation",
+                        "screen" to "VoiceDictationScreen"
+                    )
+                )
             }
         } else {
+            // 🔹 Datadog: el usuario canceló o el intent devolvió error
+            GlobalRumMonitor.get().addError(
+                "voice_dictation_cancel_or_error",
+                RumErrorSource.SOURCE,
+                null,
+                mapOf(
+                    "feature" to "voice_dictation",
+                    "screen" to "VoiceDictationScreen",
+                    "result_code" to result.resultCode
+                )
+            )
+
             // El usuario canceló o hubo un error
             alertState = AlertState(
                 show = true,
@@ -165,8 +205,29 @@ fun VoiceDictationScreen(
         }
 
         if (intent.resolveActivity(context.packageManager) != null) {
+            // 🔹 Datadog: el usuario inicia un dictado de voz
+            GlobalRumMonitor.get().addAction(
+                RumActionType.CUSTOM,
+                "voice_dictation_start",
+                mapOf(
+                    "feature" to "voice_dictation",
+                    "screen" to "VoiceDictationScreen"
+                )
+            )
+
             speechRecognizerLauncher.launch(intent)
         } else {
+            // 🔹 Datadog: no hay app de reconocimiento de voz disponible
+            GlobalRumMonitor.get().addError(
+                "voice_recognition_not_available",
+                RumErrorSource.SOURCE,
+                null,
+                mapOf(
+                    "feature" to "voice_dictation",
+                    "screen" to "VoiceDictationScreen"
+                )
+            )
+
             alertState = AlertState(
                 show = true,
                 message = "Tu dispositivo no soporta el reconocimiento de voz. Asegúrate de tener Google instalado y actualizado.",
@@ -205,6 +266,18 @@ fun VoiceDictationScreen(
             }
         } else {
             permissionDeniedCount++
+
+            // 🔹 Datadog: el usuario negó el permiso del micrófono
+            GlobalRumMonitor.get().addError(
+                "mic_permission_denied",
+                RumErrorSource.SOURCE,
+                null,
+                mapOf(
+                    "feature" to "voice_dictation",
+                    "screen" to "VoiceDictationScreen",
+                    "denied_count" to permissionDeniedCount
+                )
+            )
 
             if (permissionDeniedCount >= 2) {
                 // El usuario ha rechazado el permiso múltiples veces
