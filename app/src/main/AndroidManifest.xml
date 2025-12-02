@@ -12,6 +12,16 @@
         android:name="android.hardware.microphone"
         android:required="false" />
 
+    <!-- ✅ NUEVO: Declarar intents que la app necesita consultar (Android 11+) -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
     <application
         android:name=".FinEduApp"
         android:allowBackup="true"

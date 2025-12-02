@@ -8,5 +8,6 @@ data class MainDashboardState(
     val capitalAmount: Double = 0.0,
     val transactions: List<TransactionItem> = emptyList(),
     val isLoading: Boolean = true,
+    val availableCategories: List<String> = emptyList(),
     val error: String? = null
 )

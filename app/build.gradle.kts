@@ -8,6 +8,9 @@ plugins {
     alias(libs.plugins.firebase.crashlytics)
     alias(libs.plugins.hilt)
     alias(libs.plugins.kotlin.kapt)
+
+    // Datadog Gradle Plugin (para subir mappings y auto-instrumentar Compose)
+    //id("com.datadoghq.dd-sdk-android-gradle-plugin") version "1.21.0"
 }
 
 android {
@@ -16,12 +19,17 @@ android {
 
     defaultConfig {
         applicationId = "com.finedu.app"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.0.2"
+        versionCode = 13
+        versionName = "1.1.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
+
+        // Datadog
+        buildConfigField("String", "DD_CLIENT_TOKEN", "\"pubed8d8fc477feb1463798562185e73aa9\"")
+        buildConfigField("String", "DD_RUM_APP_ID", "\"a3ffc84b-73bd-432d-b13a-860122786575\"")
+        buildConfigField("String", "DD_ENV", "\"dev\"") // o "prod" para release
     }
 
     buildTypes {
@@ -42,18 +50,32 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
+    kotlinOptions {
+        jvmTarget = "17"
+    }
 
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        // Necesario para usar buildConfigField (Datadog, etc.)
+        buildConfig = true
+    }
 
     packaging {
         resources {
             excludes += setOf(
-                "META-INF/AL2.0", "META-INF/LGPL2.1",
-                "META-INF/LICENSE*", "META-INF/NOTICE*"
+                "META-INF/AL2.0",
+                "META-INF/LGPL2.1",
+                "META-INF/LICENSE*",
+                "META-INF/NOTICE*"
             )
         }
     }
+
+    // (Opcional) configuración del plugin Datadog para Compose
+    // Si luego quieres auto-instrumentación de Compose:
+    // datadog {
+    //     composeInstrumentation = "AUTO" // AUTO, ANNOTATION o DISABLE
+    // }
 }
 
 dependencies {
@@ -61,35 +83,35 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
-    implementation("androidx.compose.runtime:runtime-livedata:1.9.4")
+
     // Compose BOM
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
-    implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation(libs.play.services.games)
     implementation(libs.androidx.compose.ui.text.google.fonts)
-    debugImplementation(libs.androidx.ui.tooling)
-    debugImplementation(libs.androidx.ui.test.manifest)
+    implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.compose.ui.text)
 
-    // Retrofit
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    // Runtime LiveData (sin versión para usar BOM)
+    implementation("androidx.compose.runtime:runtime-livedata")
+    // Íconos extendidos (también sin versión, se resuelve con el BOM)
+    implementation("androidx.compose.material:material-icons-extended")
+    // ui-graphics (podrías cambiarlo a alias si quieres)
+    implementation("androidx.compose.ui:ui-graphics")
 
-    // OkHttp
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+    // Retrofit (usa solo las versiones del catalog)
+    implementation(libs.retrofit.core)
+    implementation(libs.retrofit.converter.gson)
+
+    // OkHttp (solo catalog)
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
 
     // Gson
     implementation("com.google.code.gson:gson:2.10.1")
 
-    // Las demás dependencias que ya tienes...
-    // Compose
-    implementation("androidx.compose.material3:material3:1.2.0")
-    implementation("androidx.compose.material:material-icons-extended:1.6.0")
-
-    // ViewModel
+    // ViewModel + navegación con Hilt
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
 
@@ -97,7 +119,7 @@ dependencies {
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
 
-    // Navigation
+    // Navigation (solo una vez, usando catalog)
     implementation(libs.androidx.navigation.compose)
 
     // DataStore
@@ -107,12 +129,6 @@ dependencies {
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     kapt(libs.room.compiler)
-    implementation(libs.retrofit.core)
-    implementation(libs.retrofit.converter.gson)
-    implementation(libs.okhttp)
-    implementation(libs.okhttp.logging)
-    implementation("androidx.navigation:navigation-compose:2.7.5")
-
 
     // WorkManager
     implementation(libs.work.runtime.ktx)
@@ -124,7 +140,9 @@ dependencies {
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
 
+    // Biometría
     implementation(libs.androidx.biometric)
+
     // Firebase (BoM + módulos)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth.ktx)
@@ -137,4 +155,9 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+
+    // Datadog – RUM, Logs, OkHttp usando el catalog
+    implementation(libs.dd.sdk.android.rum)
+    implementation(libs.dd.sdk.android.logs)
+    implementation(libs.dd.sdk.android.okhttp)
 }

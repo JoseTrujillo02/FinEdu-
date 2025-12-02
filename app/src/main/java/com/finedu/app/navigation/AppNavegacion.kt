@@ -1,5 +1,7 @@
 package com.finedu.app.navigation
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -20,7 +22,7 @@ import com.finedu.app.data.UserSessionData
 import com.finedu.app.ui.MainScreen
 import com.finedu.app.ui.NotificationsScreen
 import com.finedu.app.ui.TermsScreen
-import com.finedu.app.ui.VoiceDictationScreen
+import com.finedu.app.ui.dictation.VoiceDictationScreen
 import com.finedu.app.ui.profile.ProfileScreen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
@@ -30,6 +32,7 @@ import javax.inject.Inject
 class SessionViewModel @Inject constructor(
     val repository: SessionRepository
 ) : ViewModel()
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun AppNavegacion() {
     val navController = rememberNavController()
@@ -77,6 +80,7 @@ fun AppNavegacion() {
             )
         }
 
+
         composable(AppRutas.REGISTER_SCREEN) {
             val viewModel: RegisterViewModel = hiltViewModel()
             val state by viewModel.state.collectAsState()
@@ -88,12 +92,13 @@ fun AppNavegacion() {
                     }
                 }
             }
+
             RegisterScreen(
-                onRegisterClick = { name, email, password ->
-                    viewModel.register(name, email, password)
+                onRegisterClick = { name, email, password, confirmPassword ->
+                    viewModel.register(name, email, password, confirmPassword)
                 },
                 onLoginClick = {
-                    navController.popBackStack() // Regresa a Login
+                    navController.popBackStack()
                 },
                 onTermsClick = {
                     navController.navigate(AppRutas.TERMS_SCREEN)

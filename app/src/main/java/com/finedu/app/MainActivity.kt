@@ -95,8 +95,6 @@ class MainActivity : ComponentActivity() {
 
     private fun ensureRuntimePermissions() {
         val toRequest = mutableListOf<String>()
-
-        toRequest += Manifest.permission.RECORD_AUDIO
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
 
             toRequest += Manifest.permission.POST_NOTIFICATIONS
