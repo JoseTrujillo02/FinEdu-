@@ -32,11 +32,16 @@ import com.finedu.app.auth.data.TransactionItem
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-
 import kotlin.math.max
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.unit.Velocity
+
 
 // =============================================
-//   CONTENEDOR DE ACTIVIDAD
+//   CONTENEDOR DE ACTIVIDAD CON PAGINADO
 // =============================================
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -48,7 +53,7 @@ fun ActivityCardContainer(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(400.dp),
+            .height(450.dp),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = colors.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -56,7 +61,7 @@ fun ActivityCardContainer(
         when {
             state.isLoading -> LoadingState(colors)
             state.transactions.isEmpty() -> EmptyState(colors)
-            else -> TransactionsList(colors, state.transactions, onDeleteTransaction)
+            else -> TransactionsListPaginated(colors, state.transactions, onDeleteTransaction)
         }
     }
 }
@@ -99,19 +104,148 @@ fun EmptyState(colors: AppColors) {
     }
 }
 
+// =============================================
+//   NUEVA IMPLEMENTACIÓN CON PAGINADO Y SIN PROPAGACIÓN
+// =============================================
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun TransactionsList(
+fun TransactionsListPaginated(
     colors: AppColors,
     transactions: List<TransactionItem>,
     onDelete: (String) -> Unit
 ) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+    val itemsPerPage = 3
+    var currentPage by remember { mutableStateOf(0) }
+    val totalPages = remember(transactions.size) {
+        (transactions.size + itemsPerPage - 1) / itemsPerPage
+    }
+
+    val currentItems = remember(transactions, currentPage) {
+        val start = currentPage * itemsPerPage
+        val end = minOf(start + itemsPerPage, transactions.size)
+        transactions.subList(start, end)
+    }
+
+    val listState = rememberLazyListState()
+
+    // Conexión que BLOQUEA TODA propagación de scroll
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                // Consumir TODO el scroll para prevenir propagación
+                return available
+            }
+
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                // Consumir cualquier scroll restante
+                return available
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                // Consumir TODO el fling
+                return available
+            }
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                // Consumir cualquier fling restante
+                return available
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize()
     ) {
-        items(transactions) { tx ->
-            TransactionItemRow(colors, tx) { onDelete(tx.id) }
+        // Header con paginación
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Transacciones ${currentPage * itemsPerPage + 1}-${minOf((currentPage + 1) * itemsPerPage, transactions.size)} de ${transactions.size}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.textSecondary,
+                fontWeight = FontWeight.Medium,
+                fontSize = 13.sp
+            )
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Botón anterior
+                IconButton(
+                    onClick = { if (currentPage > 0) currentPage-- },
+                    enabled = currentPage > 0,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        Icons.Outlined.ChevronLeft,
+                        contentDescription = "Anterior",
+                        tint = if (currentPage > 0) colors.primary else colors.textTertiary.copy(alpha = 0.3f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                // Indicador de páginas
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    repeat(totalPages) { index ->
+                        Box(
+                            modifier = Modifier
+                                .size(if (index == currentPage) 8.dp else 6.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (index == currentPage) colors.primary
+                                    else colors.textTertiary.copy(alpha = 0.3f)
+                                )
+                        )
+                    }
+                }
+
+                // Botón siguiente
+                IconButton(
+                    onClick = { if (currentPage < totalPages - 1) currentPage++ },
+                    enabled = currentPage < totalPages - 1,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        Icons.Outlined.ChevronRight,
+                        contentDescription = "Siguiente",
+                        tint = if (currentPage < totalPages - 1) colors.primary else colors.textTertiary.copy(alpha = 0.3f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+
+        Divider(
+            color = colors.textTertiary.copy(alpha = 0.1f),
+            thickness = 1.dp
+        )
+
+        // Lista con scroll BLOQUEADO para propagación
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(12.dp)
+                .nestedScroll(nestedScrollConnection),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            items(currentItems) { tx ->
+                TransactionItemRow(colors, tx) { onDelete(tx.id) }
+            }
         }
     }
 }

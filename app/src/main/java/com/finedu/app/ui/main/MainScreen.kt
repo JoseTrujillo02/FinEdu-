@@ -19,7 +19,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -190,6 +192,14 @@ fun MainTopBar(
     onProfileClick: () -> Unit,
     onRefreshClick: () -> Unit
 ) {
+    // 🔹 Tamaño de fuente fijo que NO escala con la configuración del sistema
+    val fixedTitleSize = with(LocalDensity.current) {
+        (38f / fontScale).sp
+    }
+    val fixedSubtitleSize = with(LocalDensity.current) {
+        (14f / fontScale).sp
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -210,26 +220,24 @@ fun MainTopBar(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Bienvenido",
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 38.sp,
-                        letterSpacing = (-1).sp,
-                        color = Color.White
-                    )
+                    fontSize = fixedTitleSize,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-1).sp,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Gestiona tus finanzas",
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        color = Color.White.copy(alpha = 0.90f),
-                        fontSize = 14.sp
-                    )
+                    fontSize = fixedSubtitleSize,
+                    color = Color.White.copy(alpha = 0.90f),
+                    maxLines = 1
                 )
             }
 
             listOf(
                 Triple(Icons.Outlined.Refresh, "Refrescar", onRefreshClick),
-                Triple(Icons.Outlined.Notifications, "Notificaciones", onNotificationClick),
                 Triple(Icons.Outlined.Person, "Perfil", onProfileClick)
             ).forEach { (icon, desc, onClick) ->
                 IconButton(
